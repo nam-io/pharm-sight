@@ -123,6 +123,8 @@
 > - `Anthropic API → Gemini API`: 무료 할당량 소진 → Gemini Flash 무료 티어로 전환 (Phase 3)
 > - `하드코딩 모델명 → ListModels 동적 탐색`: 배포 환경별 모델명 불일치(NOT_FOUND) → 근본 해결 (Phase 3)
 
+> 패키지별 버전 선택 근거 및 의존성 관리 전체: [`docs/tech-stack.md`](docs/tech-stack.md)
+
 ---
 
 ## 🏗️ 아키텍처 및 핵심 구현 코드

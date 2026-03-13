@@ -2,22 +2,39 @@
  * @composable useDashboardData
  * @description 약국 경영 대시보드 데이터를 백엔드 API에서 조회하는 Vue Composable.
  *
- * [에러 처리 전략]
- * 3단계 에러 분류를 통해 사용자에게 정확한 피드백을 제공합니다:
- *   - NETWORK: fetch 자체가 실패 (인터넷 끊김, DNS 오류)
- *   - API:     HTTP 비정상 응답 (4xx, 5xx — 서버 오류 또는 경로 오류)
- *   - PARSE:   JSON 역직렬화 실패 (응답 형식 불일치)
+ * [에러 처리 전략 — 3단계 분류 + 유형별 차별 대응]
+ *
+ *   NETWORK (TypeError: Failed to fetch / AbortError)
+ *     → 원인: 인터넷 단절, DNS 오류, 서버 다운, 요청 타임아웃
+ *     → 대응: 500ms 지연 후 1회 자동 재시도 → 실패 시 Mock 폴백
+ *     → 로그:  retryCount 포함 구조화 로깅
+ *
+ *   API (HTTP 4xx / 5xx)
+ *     → 원인: 서버 오류, 라우팅 실패, 인증 오류
+ *     → 대응: 재시도 없음 (서버 측 문제는 재시도가 무의미) → Mock 폴백
+ *     → 로그:  HTTP 상태코드 포함
+ *
+ *   PARSE (JSON 역직렬화 실패)
+ *     → 원인: 응답 형식 불일치, 빈 응답
+ *     → 대응: 재시도 없음 → Mock 폴백
+ *     → 로그:  원본 에러 포함
+ *
+ * [타임아웃 전략]
+ * AbortController로 10초 타임아웃을 적용합니다.
+ * fetch 자체에 timeout 옵션이 없으므로 AbortSignal로 직접 구현합니다.
+ * 타임아웃 발생 시 AbortError → NETWORK 유형으로 분류되어 재시도합니다.
  *
  * [폴백 전략]
- * 환경변수 VITE_API_BASE_URL이 없거나 API 호출 실패 시 Mock 데이터를 표시합니다.
- * 이 폴백으로 백엔드 장애 시에도 UI가 완전히 깨지지 않습니다 (Graceful Degradation).
+ * VITE_API_BASE_URL 미설정 또는 모든 재시도 실패 시 MOCK_DATA를 표시합니다.
+ * dashboardData는 초기값이 MOCK_DATA이므로 API 실패 시에도 UI가 깨지지 않습니다
+ * (Graceful Degradation).
  *
  * [로깅 전략]
  * console.error에 구조화된 컨텍스트 객체를 포함합니다:
- * { errorType, message, timestamp, fallback, raw }
- * 브라우저 DevTools에서 오류 유형과 발생 시각을 즉시 파악할 수 있습니다.
+ * { errorType, message, retryCount, timestamp, fallback, raw }
+ * 브라우저 DevTools에서 에러 유형 · 재시도 횟수 · 발생 시각을 즉시 파악할 수 있습니다.
  *
- * @throws 에러를 throw하지 않습니다. 오류 상태는 반환되는 `error` ref를 통해 전파됩니다.
+ * @throws 에러를 throw하지 않습니다. 오류 상태는 반환되는 `error` / `errorType` ref로 전파됩니다.
  */
 import { ref, computed } from 'vue'
 import type { DashboardData, KpiCard } from '@/types'
@@ -26,39 +43,90 @@ import type { KpiSummary } from '@/types/api'
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
 const USE_MOCK = !API_BASE
 
+// ── 상수 ─────────────────────────────────────────────────────────────────
+/** 단일 API 요청 타임아웃 (ms). AbortController로 구현. */
+const REQUEST_TIMEOUT_MS = 10_000
+/** NETWORK 에러 자동 재시도 횟수. API/PARSE 에러는 재시도하지 않습니다. */
+const MAX_NETWORK_RETRIES = 1
+/** NETWORK 에러 재시도 전 대기 시간 (ms). */
+const RETRY_DELAY_MS = 500
+
 // ── 에러 분류 타입 ───────────────────────────────────────────────────────
-type ApiErrorType = 'NETWORK' | 'API' | 'PARSE'
+/** API 에러 유형. 유형별로 재시도 여부와 사용자 메시지가 다릅니다. */
+export type ApiErrorType = 'NETWORK' | 'API' | 'PARSE'
 
 interface ClassifiedError {
   type: ApiErrorType
   message: string
+  /** 사용자에게 표시할 친화적 메시지 */
   userMessage: string
+  /** NETWORK 유형인 경우 재시도 가능 여부 */
+  retryable: boolean
 }
 
 /**
  * 발생한 예외를 유형별로 분류합니다.
- * 분류된 에러는 사용자 표시 메시지와 로깅 컨텍스트 생성에 사용됩니다.
+ * AbortError(타임아웃)는 NETWORK로 분류하여 재시도 대상에 포함합니다.
  */
 function classifyError(e: unknown): ClassifiedError {
+  // AbortError: AbortController 타임아웃 또는 명시적 중단
+  if (e instanceof DOMException && e.name === 'AbortError') {
+    return {
+      type: 'NETWORK',
+      message: `요청 타임아웃 (${REQUEST_TIMEOUT_MS / 1000}초 초과)`,
+      userMessage: `서버 응답이 지연되고 있습니다 (${REQUEST_TIMEOUT_MS / 1000}초 초과). 잠시 후 다시 시도해주세요.`,
+      retryable: true,
+    }
+  }
+  // TypeError: fetch 자체가 실패 (네트워크 단절, DNS 오류)
   if (e instanceof TypeError && e.message.toLowerCase().includes('fetch')) {
     return {
       type: 'NETWORK',
       message: e.message,
       userMessage: '네트워크 연결을 확인하거나 잠시 후 다시 시도해주세요.',
+      retryable: true,
     }
   }
+  // HTTP 4xx / 5xx: 서버 측 오류 — 재시도 무의미
   if (e instanceof Error && e.message.startsWith('API 오류')) {
     return {
       type: 'API',
       message: e.message,
       userMessage: e.message,
+      retryable: false,
     }
   }
+  // JSON 파싱 실패 등
   return {
     type: 'PARSE',
     message: e instanceof Error ? e.message : String(e),
     userMessage: '데이터를 불러오는 중 오류가 발생했습니다.',
+    retryable: false,
   }
+}
+
+/**
+ * AbortController로 타임아웃을 적용한 fetch 래퍼.
+ * REQUEST_TIMEOUT_MS 초과 시 AbortError를 throw합니다.
+ */
+async function fetchWithTimeout(input: RequestInfo, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(input, { signal: controller.signal })
+  } finally {
+    clearTimeout(timeoutId) // 성공/실패 무관하게 타이머 정리
+  }
+}
+
+/**
+ * 타임아웃 + HTTP 상태 검사를 적용한 API 호출 함수.
+ * NETWORK 에러는 상위에서 재시도 로직으로 처리합니다.
+ */
+async function fetchApi<T>(path: string): Promise<T> {
+  const res = await fetchWithTimeout(`${API_BASE}${path}`)
+  if (!res.ok) throw new Error(`API 오류 [${res.status}]: ${path}`)
+  return res.json()
 }
 
 // ── Mock 데이터 (API 미연결 시 폴백) ────────────────────────────────────
@@ -112,15 +180,11 @@ const MOCK_DATA: DashboardData = {
   ],
 }
 
-async function fetchApi<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`)
-  if (!res.ok) throw new Error(`API 오류 [${res.status}]: ${path}`)
-  return res.json()
-}
-
 export function useDashboardData() {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  /** 에러 유형 — UI에서 NETWORK/API/PARSE에 따라 다른 안내 메시지를 표시할 수 있습니다. */
+  const errorType = ref<ApiErrorType | null>(null)
   const dashboardData = ref<DashboardData>({ ...MOCK_DATA })
   const kpiRaw = ref<KpiSummary | null>(null)
 
@@ -166,45 +230,75 @@ export function useDashboardData() {
     ]
   })
 
+  /**
+   * 7개 대시보드 API를 Promise.all로 병렬 호출합니다.
+   * NETWORK 에러(타임아웃 포함)는 MAX_NETWORK_RETRIES회 자동 재시도합니다.
+   * API/PARSE 에러는 서버 측 문제이므로 재시도하지 않고 즉시 Mock 폴백합니다.
+   */
   async function loadAll() {
     if (USE_MOCK) return // Mock 데이터 사용 시 API 호출 생략
 
     isLoading.value = true
     error.value = null
-    try {
-      const [monthly, drugType, ages, hospitals, wholesale, coverage, kpi] = await Promise.all([
-        fetchApi<DashboardData['monthlySales']>('/api/dashboard/monthly-sales'),
-        fetchApi<DashboardData['drugTypeSales']>('/api/dashboard/drug-type-sales'),
-        fetchApi<DashboardData['patientAgeGroups']>('/api/dashboard/patient-ages'),
-        fetchApi<DashboardData['hospitalPrescriptions']>('/api/dashboard/hospital-prescriptions'),
-        fetchApi<DashboardData['wholesaleExpenses']>('/api/dashboard/wholesale-expenses'),
-        fetchApi<DashboardData['drugCoverage']>('/api/dashboard/drug-coverage'),
-        fetchApi<KpiSummary>('/api/dashboard/kpi'),
-      ])
-      dashboardData.value = {
-        monthlySales: monthly,
-        drugTypeSales: drugType,
-        patientAgeGroups: ages,
-        hospitalPrescriptions: hospitals,
-        wholesaleExpenses: wholesale,
-        drugCoverage: coverage,
+    errorType.value = null
+
+    let retryCount = 0
+
+    while (true) {
+      try {
+        const [monthly, drugType, ages, hospitals, wholesale, coverage, kpi] = await Promise.all([
+          fetchApi<DashboardData['monthlySales']>('/api/dashboard/monthly-sales'),
+          fetchApi<DashboardData['drugTypeSales']>('/api/dashboard/drug-type-sales'),
+          fetchApi<DashboardData['patientAgeGroups']>('/api/dashboard/patient-ages'),
+          fetchApi<DashboardData['hospitalPrescriptions']>('/api/dashboard/hospital-prescriptions'),
+          fetchApi<DashboardData['wholesaleExpenses']>('/api/dashboard/wholesale-expenses'),
+          fetchApi<DashboardData['drugCoverage']>('/api/dashboard/drug-coverage'),
+          fetchApi<KpiSummary>('/api/dashboard/kpi'),
+        ])
+        dashboardData.value = {
+          monthlySales: monthly,
+          drugTypeSales: drugType,
+          patientAgeGroups: ages,
+          hospitalPrescriptions: hospitals,
+          wholesaleExpenses: wholesale,
+          drugCoverage: coverage,
+        }
+        kpiRaw.value = kpi
+        break // 성공 시 루프 탈출
+      } catch (e) {
+        const classified = classifyError(e)
+
+        // NETWORK 에러이고 재시도 횟수가 남아있으면 재시도
+        if (classified.retryable && retryCount < MAX_NETWORK_RETRIES) {
+          retryCount++
+          console.warn('[useDashboardData] NETWORK 에러 — 재시도 중', {
+            errorType: classified.type,
+            retryCount,
+            maxRetries: MAX_NETWORK_RETRIES,
+            delayMs: RETRY_DELAY_MS,
+            timestamp: new Date().toISOString(),
+          })
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
+          continue // 재시도
+        }
+
+        // 재시도 소진 또는 재시도 불가 에러 → Mock 폴백
+        error.value = classified.userMessage
+        errorType.value = classified.type
+        console.error('[useDashboardData] API 호출 실패 — Mock 데이터 폴백', {
+          errorType: classified.type,     // NETWORK | API | PARSE
+          message: classified.message,
+          retryCount,                      // 실제 재시도 횟수
+          timestamp: new Date().toISOString(),
+          fallback: 'Mock 데이터로 자동 폴백',
+          raw: e,
+        })
+        break
       }
-      kpiRaw.value = kpi
-    } catch (e) {
-      const classified = classifyError(e)
-      error.value = classified.userMessage
-      // 구조화된 에러 로깅: 오류 유형 · 발생 시각 · 폴백 상태 포함
-      console.error('[useDashboardData] API 호출 실패', {
-        errorType: classified.type,        // NETWORK | API | PARSE
-        message: classified.message,
-        timestamp: new Date().toISOString(),
-        fallback: 'Mock 데이터로 자동 폴백',
-        raw: e,
-      })
-    } finally {
-      isLoading.value = false
     }
+
+    isLoading.value = false
   }
 
-  return { isLoading, error, dashboardData, kpiCards, loadAll }
+  return { isLoading, error, errorType, dashboardData, kpiCards, loadAll }
 }
