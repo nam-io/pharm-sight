@@ -9,7 +9,7 @@
 | **목표 시간** | 1h ~ 3h (120분 이내 완료) |
 | **작성일** | 2026-03-13 |
 | **담당자** | 1인 풀스택 개발 |
-| **상태** | 🔄 진행 중 |
+| **상태** | ✅ 완료 |
 | **작업 브랜치** | `sprint/sprint1` |
 | **배포 URL** | https://pharm-sight-frontend.vercel.app (완료) |
 
@@ -264,22 +264,22 @@ export interface ChartPieData {
 
 ## 완료 조건 (Definition of Done)
 
-- [ ] `frontend/src/composables/useDashboardData.ts` 작성 완료, 6개 차트 Mock 데이터 반환
-- [ ] `frontend/src/layouts/AppLayout.vue` 구현 완료 (헤더 + 슬롯)
-- [ ] `frontend/src/components/charts/` 내 6개 차트 컴포넌트 구현 완료
-  - [ ] `MonthlySalesTrendChart.vue` (라인 차트)
-  - [ ] `RxOtcSalesRatioChart.vue` (파이 차트)
-  - [ ] `PatientAgeDistributionChart.vue` (도넛 차트)
-  - [ ] `HospitalReferralChart.vue` (가로 바 차트)
-  - [ ] `WholesalerExpenditureChart.vue` (세로 바 차트)
-  - [ ] `CoverageRatioChart.vue` (파이 차트)
-- [ ] `frontend/src/views/DashboardView.vue` 구현 완료 (6개 패널 그리드 배치)
-- [ ] `frontend/src/App.vue` 업데이트 완료 (DashboardView 마운트)
-- [ ] `frontend/src/main.ts` ECharts 전역 컴포넌트 등록 완료
-- [ ] `npm run build` 성공 (TypeScript 오류 0건, 빌드 경고 없음)
-- [ ] Vercel 배포 URL(https://pharm-sight-frontend.vercel.app) 접속 시 6개 차트 정상 표시
-- [ ] `README.md` 최상단에 배포 URL 기록 완료
-- [ ] `docs/sprint/sprint1.md` 문서 작성 완료 (현재 파일)
+- [x] `frontend/src/composables/useDashboardData.ts` 작성 완료, 6개 차트 Mock 데이터 반환
+- [x] `frontend/src/layouts/AppLayout.vue` 구현 완료 (헤더 + 슬롯)
+- [x] `frontend/src/components/charts/` 내 6개 차트 컴포넌트 구현 완료
+  - [x] `MonthlySalesTrendChart.vue` (라인 차트)
+  - [x] `RxOtcSalesRatioChart.vue` (파이 차트)
+  - [x] `PatientAgeDistributionChart.vue` (도넛 차트)
+  - [x] `HospitalReferralChart.vue` (가로 바 차트)
+  - [x] `WholesalerExpenditureChart.vue` (세로 바 차트)
+  - [x] `CoverageRatioChart.vue` (파이 차트)
+- [x] `frontend/src/views/DashboardView.vue` 구현 완료 (6개 패널 그리드 배치)
+- [x] `frontend/src/App.vue` 업데이트 완료 (DashboardView 마운트)
+- [x] `frontend/src/main.ts` ECharts 전역 컴포넌트 등록 완료
+- [x] `npm run build` 성공 (TypeScript 오류 0건, 빌드 경고 없음)
+- [x] Vercel 배포 URL(https://pharm-sight-frontend.vercel.app) 접속 시 6개 차트 정상 표시
+- [x] `README.md` 최상단에 배포 URL 기록 완료
+- [x] `docs/sprint/sprint1.md` 문서 작성 완료 (현재 파일)
 
 ---
 

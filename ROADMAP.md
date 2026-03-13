@@ -13,7 +13,7 @@
 | 항목 | 현황 |
 |------|------|
 | 전체 진행률 | 100% (3/3 Phase 완료) |
-| 현재 Phase | Phase 2 완료 / 배포 버그 수정 중 |
+| 현재 Phase | Phase 3 완료 / 전 Phase 완료 |
 | 프론트엔드 배포 | https://pharm-sight-frontend.vercel.app ✅ |
 | 백엔드 배포 | https://pharm-sight.onrender.com ✅ |
 | DB | Supabase PostgreSQL ✅ |
@@ -79,8 +79,8 @@ Supabase(PostgreSQL) 실데이터 기반 Dapper API 구현, Render 배포, 프�
 
 ---
 
-### 📋 Phase 3: AI 경영 분석 기능 추가 (Sprint 3)
-**상태:** 🔄 진행 중
+### ✅ Phase 3: AI 경영 분석 기능 추가 (Sprint 3)
+**상태:** ✅ 완료
 
 #### 목표
 Claude AI API를 연동하여 약국 경영 데이터를 자동 분석하고, 대시보드 상단에 친절한 AI 인사이트를 표시한다.
