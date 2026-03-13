@@ -4,14 +4,12 @@
  * 백엔드 헬스체크 엔드포인트를 10분마다 자동 호출합니다.
  */
 import { onMounted, onUnmounted } from 'vue'
-
-const PING_INTERVAL_MS = 10 * 60 * 1000 // 10분
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
+import { API_BASE_URL, KEEP_ALIVE_INTERVAL_MS } from '@/config'
 
 async function ping() {
-  if (!API_BASE) return
+  if (!API_BASE_URL) return
   try {
-    const res = await fetch(`${API_BASE}/api/health`)
+    const res = await fetch(`${API_BASE_URL}/api/health`)
     if (res.ok) {
       console.info(`[KeepAlive] 백엔드 핑 성공 ${new Date().toLocaleTimeString('ko-KR')}`)
     }
@@ -25,7 +23,7 @@ export function useKeepAlive() {
 
   onMounted(() => {
     ping() // 즉시 1회 호출
-    timer = setInterval(ping, PING_INTERVAL_MS)
+    timer = setInterval(ping, KEEP_ALIVE_INTERVAL_MS)
   })
 
   onUnmounted(() => {

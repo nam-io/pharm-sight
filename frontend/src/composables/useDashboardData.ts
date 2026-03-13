@@ -39,17 +39,13 @@
 import { ref, computed } from 'vue'
 import type { DashboardData, KpiCard } from '@/types'
 import type { KpiSummary } from '@/types/api'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
-const USE_MOCK = !API_BASE
-
-// ── 상수 ─────────────────────────────────────────────────────────────────
-/** 단일 API 요청 타임아웃 (ms). AbortController로 구현. */
-const REQUEST_TIMEOUT_MS = 10_000
-/** NETWORK 에러 자동 재시도 횟수. API/PARSE 에러는 재시도하지 않습니다. */
-const MAX_NETWORK_RETRIES = 1
-/** NETWORK 에러 재시도 전 대기 시간 (ms). */
-const RETRY_DELAY_MS = 500
+import {
+  API_BASE_URL,
+  USE_MOCK,
+  DASHBOARD_TIMEOUT_MS,
+  MAX_NETWORK_RETRIES,
+  RETRY_DELAY_MS,
+} from '@/config'
 
 // ── 에러 분류 타입 ───────────────────────────────────────────────────────
 /** API 에러 유형. 유형별로 재시도 여부와 사용자 메시지가 다릅니다. */
@@ -73,8 +69,8 @@ function classifyError(e: unknown): ClassifiedError {
   if (e instanceof DOMException && e.name === 'AbortError') {
     return {
       type: 'NETWORK',
-      message: `요청 타임아웃 (${REQUEST_TIMEOUT_MS / 1000}초 초과)`,
-      userMessage: `서버 응답이 지연되고 있습니다 (${REQUEST_TIMEOUT_MS / 1000}초 초과). 잠시 후 다시 시도해주세요.`,
+      message: `요청 타임아웃 (${DASHBOARD_TIMEOUT_MS / 1000}초 초과)`,
+      userMessage: `서버 응답이 지연되고 있습니다 (${DASHBOARD_TIMEOUT_MS / 1000}초 초과). 잠시 후 다시 시도해주세요.`,
       retryable: true,
     }
   }
@@ -107,9 +103,9 @@ function classifyError(e: unknown): ClassifiedError {
 
 /**
  * AbortController로 타임아웃을 적용한 fetch 래퍼.
- * REQUEST_TIMEOUT_MS 초과 시 AbortError를 throw합니다.
+ * DASHBOARD_TIMEOUT_MS 초과 시 AbortError를 throw합니다.
  */
-async function fetchWithTimeout(input: RequestInfo, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
+async function fetchWithTimeout(input: RequestInfo, timeoutMs = DASHBOARD_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
   try {
@@ -124,7 +120,7 @@ async function fetchWithTimeout(input: RequestInfo, timeoutMs = REQUEST_TIMEOUT_
  * NETWORK 에러는 상위에서 재시도 로직으로 처리합니다.
  */
 async function fetchApi<T>(path: string): Promise<T> {
-  const res = await fetchWithTimeout(`${API_BASE}${path}`)
+  const res = await fetchWithTimeout(`${API_BASE_URL}${path}`)
   if (!res.ok) throw new Error(`API 오류 [${res.status}]: ${path}`)
   return res.json()
 }

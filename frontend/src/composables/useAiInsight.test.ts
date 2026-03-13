@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// API_BASE 미설정 상태 모킹 (모듈 임포트 전에 설정)
-vi.stubEnv('VITE_API_BASE_URL', '')
-
 describe('useAiInsight (Mock 모드)', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    vi.stubEnv('VITE_API_BASE_URL', '')
+    vi.resetModules()
   })
 
   it('초기 상태에서 insight는 null이다', async () => {

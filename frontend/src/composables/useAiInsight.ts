@@ -32,16 +32,7 @@
  */
 import { ref } from 'vue'
 import type { AiInsight } from '@/types/api'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
-
-// ── 상수 ─────────────────────────────────────────────────────────────────
-/**
- * AI 요청 타임아웃 (ms).
- * Gemini API 응답이 2~5초 소요되므로 대시보드(10초)보다 여유 있게 설정합니다.
- * Named HttpClient "Gemini"의 백엔드 타임아웃(30초)보다는 짧게 설정합니다.
- */
-const AI_REQUEST_TIMEOUT_MS = 15_000
+import { API_BASE_URL, AI_TIMEOUT_MS } from '@/config'
 
 // ── 에러 분류 ─────────────────────────────────────────────────────────────
 /** AI 에러 유형. UI에서 유형별 메시지를 다르게 표시할 수 있습니다. */
@@ -60,7 +51,7 @@ function classifyAiError(e: unknown): ClassifiedAiError {
   if (e instanceof DOMException && e.name === 'AbortError') {
     return {
       type: 'NETWORK',
-      message: `AI 서버 응답 지연 (${AI_REQUEST_TIMEOUT_MS / 1000}초 초과). 잠시 후 새로고침해주세요.`,
+      message: `AI 서버 응답 지연 (${AI_TIMEOUT_MS / 1000}초 초과). 잠시 후 새로고침해주세요.`,
     }
   }
   if (e instanceof TypeError && e.message.toLowerCase().includes('fetch')) {
@@ -81,18 +72,18 @@ export function useAiInsight() {
 
   async function loadInsight() {
     // VITE_API_BASE_URL 미설정 시 API 호출 생략 (로컬 개발 환경 대응)
-    if (!API_BASE) return
+    if (!API_BASE_URL) return
 
     isLoading.value = true
     error.value = null
     errorType.value = null
 
-    // AbortController로 AI_REQUEST_TIMEOUT_MS 타임아웃 적용
+    // AbortController로 AI_TIMEOUT_MS 타임아웃 적용
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS)
+    const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS)
 
     try {
-      const res = await fetch(`${API_BASE}/api/ai/insight`, { signal: controller.signal })
+      const res = await fetch(`${API_BASE_URL}/api/ai/insight`, { signal: controller.signal })
       if (!res.ok) throw new Error(`AI 분석 오류 [${res.status}]`)
       insight.value = await res.json()
     } catch (e) {

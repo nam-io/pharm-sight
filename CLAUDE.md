@@ -41,9 +41,12 @@
 > **주의:** PostgreSQL은 `DATE_TRUNC`, `TO_CHAR`, `AGE()` 함수를 사용합니다. COUNT()는 bigint(long), ROUND()는 numeric(decimal)로 Dapper 매핑합니다.
 
 ## 5. 🧪 검증 및 CI/CD 파이프라인 (Testing & CI)
-- **단위 테스트:** `backend/PharmSight.Tests/` — `xUnit` + `Moq`로 Service 계층 테스트 (Repository Mocking). 총 13개 테스트 케이스.
-  - `DashboardServiceTests`: 7개 메서드별 동작 검증, 빈 결과 엣지 케이스 포함
-  - `AiInsightServiceTests`: API 키 미설정 Graceful Degradation, 캐시 동작 검증
+- **단위 테스트:** `backend/PharmSight.Tests/` — `xUnit` + `Moq`로 3계층 테스트. 총 35개 백엔드 + 16개 프론트엔드 = **51개** 테스트 케이스.
+  - `DashboardServiceTests`: 9개 — 7개 메서드별 동작 검증, 빈 결과 엣지 케이스, 0 나눗셈 방어
+  - `AiInsightServiceTests`: 4개 — API 키 미설정 Graceful Degradation, 캐시 동작 검증
+  - `DashboardRepositoryTests`: 8개 — URI→키=값 변환 6종, 미설정 예외, 인터페이스 구현
+  - `DashboardControllerTests`: 9개 — 7개 엔드포인트 OkResult, Thin Controller 패턴 검증
+  - `GlobalExceptionMiddlewareTests`: 5개 — 예외 유형별 상태코드 매핑, JSON 응답 형식
 - **CI/CD:** `.github/workflows/ci.yml` — GitHub Actions로 push/PR 시 자동 실행
   - `backend-test` job: .NET 9.0 빌드 + xUnit 단위 테스트 + TRX 결과 업로드
   - `frontend-build` job: Node 20 + `npm ci` + Vite 프로덕션 빌드 검증
