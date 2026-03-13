@@ -32,7 +32,7 @@ public class AiInsightService : IAiInsightService
         _httpClientFactory = httpClientFactory;
         _cache = cache;
         _logger = logger;
-        _apiKey = configuration["Anthropic:ApiKey"] ?? "";
+        _apiKey = configuration["Gemini:ApiKey"] ?? "";
     }
 
     /// <summary>캐시된 인사이트를 반환하거나 새로 생성합니다.</summary>
@@ -54,12 +54,12 @@ public class AiInsightService : IAiInsightService
     {
         if (string.IsNullOrEmpty(_apiKey))
         {
-            _logger.LogWarning("Anthropic API 키가 설정되지 않았습니다. 기본 인사이트를 반환합니다.");
+            _logger.LogWarning("Gemini API 키가 설정되지 않았습니다. 기본 인사이트를 반환합니다.");
             return new AiInsight(
-                "AI 경영 분석 기능을 사용하려면 Anthropic API 키 설정이 필요합니다.",
+                "AI 경영 분석 기능을 사용하려면 Gemini API 키 설정이 필요합니다.",
                 ["대시보드 데이터 정상 수집 중"],
                 [],
-                "Render 환경변수에 Anthropic__ApiKey를 등록하면 AI 분석이 활성화됩니다.",
+                "Render 환경변수에 Gemini__ApiKey를 등록하면 AI 분석이 활성화됩니다.",
                 DateTime.UtcNow
             );
         }
@@ -72,7 +72,7 @@ public class AiInsightService : IAiInsightService
             var hospitals = (await _repository.GetHospitalPrescriptionsAsync()).ToList();
 
             var prompt = BuildPrompt(kpi, monthly, drugType, hospitals);
-            var responseText = await CallAnthropicAsync(prompt);
+            var responseText = await CallGeminiAsync(prompt);
             var insight = ParseInsight(responseText);
 
             _logger.LogInformation("AI 인사이트 생성 완료");
@@ -82,10 +82,10 @@ public class AiInsightService : IAiInsightService
         {
             _logger.LogError(ex, "AI 인사이트 생성 중 오류 발생");
             return new AiInsight(
-                $"[진단중] {ex.GetType().Name}: {ex.Message}",
+                "데이터 분석 중 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
                 [],
                 [],
-                ex.InnerException?.Message ?? "상세 원인 없음",
+                "대시보드 데이터는 정상적으로 표시되고 있습니다.",
                 DateTime.UtcNow
             );
         }
@@ -134,27 +134,35 @@ public class AiInsightService : IAiInsightService
             jsonSchema;
     }
 
-    /// <summary>Anthropic Claude API를 호출하고 텍스트 응답을 반환합니다.</summary>
-    private async Task<string> CallAnthropicAsync(string prompt)
+    /// <summary>Google Gemini API를 호출하고 텍스트 응답을 반환합니다.</summary>
+    private async Task<string> CallGeminiAsync(string prompt)
     {
-        var client = _httpClientFactory.CreateClient("Anthropic");
+        var client = _httpClientFactory.CreateClient("Gemini");
+        var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={_apiKey}";
 
         var requestBody = new
         {
-            model = "claude-haiku-4-5-20251001",
-            max_tokens = 1024,
-            messages = new[] { new { role = "user", content = prompt } }
+            contents = new[]
+            {
+                new { parts = new[] { new { text = prompt } } }
+            },
+            generationConfig = new { responseMimeType = "application/json" }
         };
 
-        var response = await client.PostAsJsonAsync("https://api.anthropic.com/v1/messages", requestBody);
+        var response = await client.PostAsJsonAsync(url, requestBody);
         var responseBody = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)
             throw new InvalidOperationException(
-                $"Anthropic API {(int)response.StatusCode}: {responseBody}");
+                $"Gemini API {(int)response.StatusCode}: {responseBody}");
 
-        var result = JsonDocument.Parse(responseBody);
-        return result.RootElement.GetProperty("content")[0].GetProperty("text").GetString() ?? "{}";
+        using var result = JsonDocument.Parse(responseBody);
+        return result.RootElement
+            .GetProperty("candidates")[0]
+            .GetProperty("content")
+            .GetProperty("parts")[0]
+            .GetProperty("text")
+            .GetString() ?? "{}";
     }
 
     /// <summary>Claude 응답 텍스트를 AiInsight 모델로 파싱합니다.</summary>
