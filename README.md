@@ -106,6 +106,25 @@
 
 ---
 
+## 🛠️ 기술 스택 선택 근거
+
+| 레이어 | 채택 기술 | 선택 근거 | 탈락 대안 |
+|--------|---------|---------|---------|
+| **Frontend** | Vue 3 + Composition API + Vite | `useDashboardData` 등 Composable로 로직 재사용 · Vite 6 즉각 HMR · `<script setup>` TypeScript 자연 통합 | React (JSX 러닝커브, CRA 느림) |
+| **차트** | Apache ECharts | 복합 차트(바+라인 오버레이) 네이티브 지원 · `noData` 옵션 · 6종 차트 통일 API | Chart.js (복합 차트 제한) |
+| **Backend** | C# .NET 9.0 Web API | 강타입 DTO 컴파일 검증 · async/await 7개 쿼리 병렬 · xUnit+Moq 테스트 생태계 성숙 | Node.js/Python (타입 안전성 약함) |
+| **DB** | PostgreSQL (Supabase) | `DATE_TRUNC`, `AGE()` 집계 함수 · 클라우드 영속성 (SQLite는 Render 재배포 시 소멸) | SQLite (Render 에페머럴 파일시스템 문제) |
+| **ORM** | Dapper (순수 SQL) | CTE 3중 집계 1회 왕복 · Change Tracking 오버헤드 없음 · PostgreSQL 네이티브 함수 직접 사용 | EF Core (LINQ 한계, 집계 쿼리 최적화 불명확) |
+| **AI** | Google Gemini API | 무료 할당량(1M 토큰/월) · ListModels API로 동적 모델 탐색 가능 | Anthropic Claude (무료 할당량 소진) |
+| **Infra** | Vercel + Render + Supabase | 3가지 모두 무료 티어로 해커톤 비용 0원 클라우드 배포 달성 | Railway/PlanetScale (크레딧 제한) |
+
+> **기술 스택 변경 이력 (개발 중 발생):**
+> - `SQLite → PostgreSQL`: Render 에페머럴 파일시스템으로 배포 시 데이터 소멸 → Supabase 전환 (Phase 2)
+> - `Anthropic API → Gemini API`: 무료 할당량 소진 → Gemini Flash 무료 티어로 전환 (Phase 3)
+> - `하드코딩 모델명 → ListModels 동적 탐색`: 배포 환경별 모델명 불일치(NOT_FOUND) → 근본 해결 (Phase 3)
+
+---
+
 ## 🏗️ 아키텍처 및 핵심 구현 코드
 
 ### Controller → Service → Repository 계층 분리

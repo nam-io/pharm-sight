@@ -89,14 +89,21 @@ Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4
 
 > ROADMAP: Phase 3 · Sprint 3
 > **주목:** 이 Phase에서 AI API 선택 변경 및 집중 디버깅이 이루어졌습니다.
-> 상세 기술 의사결정: [`docs/decision-log.md`](decision-log.md)
+
+### 기술 의사결정 (ADR) — Phase 3 핵심
+
+| 결정 | 선택 | 탈락 대안 | 근거 |
+|------|------|---------|------|
+| AI API 선택 | **Google Gemini API** | Anthropic Claude | Anthropic 무료 할당량 소진 → Gemini Flash 무료 티어(1M 토큰/월) |
+| 모델 선택 방식 | **ListModels API 동적 탐색** | 모델명 하드코딩 | 배포 환경별 사용 가능 모델이 달라 NOT_FOUND 발생 → 런타임 자동 탐색으로 근본 해결 |
+| AI 응답 캐싱 | **IMemoryCache 30분** | 매 요청마다 Gemini 호출 | Gemini API 비용·할당량 절약 + 2초→10ms 응답 개선 |
 
 ### AI 초기 구현 (Anthropic → Gemini 전환)
 
-| 커밋 | 해시 | 작업 내용 | 의사결정 근거 |
-|------|------|----------|-------------|
-| feat: Claude AI 기반 약국 경영 인사이트 대시보드 추가 | `c7e1ce4` | `AiInsightService.cs`, `AiInsightController.cs`, `AiInsightPanel.vue` 초기 구현 | Anthropic API를 1차 선택. 요약·하이라이트·경고·추천 4개 섹션 구조 정의 |
-| fix: AI 인사이트 컨트롤러 라우트 수정 (api/aiinsight → api/ai) | `f94060e` | 라우팅 오류 수정 | `[Route("api/aiinsight")]` → `[Route("api/ai")]` — 프론트엔드 `useAiInsight.ts`의 호출 경로와 불일치 발견 후 즉시 수정 |
+| 커밋 | 해시 | 작업 내용 | ROADMAP 항목 |
+|------|------|----------|------------|
+| feat: Claude AI 기반 약국 경영 인사이트 대시보드 추가 | `c7e1ce4` | `AiInsightService.cs`, `AiInsightController.cs`, `AiInsightPanel.vue` 초기 구현. Anthropic API 1차 선택, 요약·하이라이트·경고·추천 4개 섹션 구조 정의 | Phase 3: AI 서비스 초기 구현 |
+| fix: AI 인사이트 컨트롤러 라우트 수정 (api/aiinsight → api/ai) | `f94060e` | `[Route("api/aiinsight")]` → `[Route("api/ai")]` — 프론트엔드 `useAiInsight.ts` 호출 경로와 불일치 수정 | Phase 3: API 라우팅 수정 |
 
 ---
 
@@ -106,7 +113,7 @@ Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4
 > 전환 과정에서 API 버전·모델명·요청 형식의 세 가지 축으로 문제가 연속 발생했으며,
 > 각 단계의 가설 수립 → 코드 수정 → 배포 검증 → 재진단 사이클을 기록합니다.
 
-#### 1단계: 초기 오류 진단 환경 구축 `91d8e2a`
+#### 1단계: 초기 오류 진단 환경 구축 `91d8e2a` | ROADMAP: Phase 3 — AI 서비스 디버깅 기반
 
 ```
 커밋: debug: AI 인사이트 예외 원인 진단용 에러 메시지 노출
@@ -125,7 +132,7 @@ Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4
   - 오류 메시지 가시화 → Anthropic SDK 인증 오류(401) 확인
 ```
 
-#### 2단계: Anthropic → Gemini 전환 결정 `5ff16a7`
+#### 2단계: Anthropic → Gemini 전환 결정 `5ff16a7` | ROADMAP: Phase 3 — AI 엔진 전환 (Gemini API)
 
 ```
 커밋: feat: AI 엔진 Anthropic → Google Gemini 2.0 Flash 전환
@@ -258,7 +265,7 @@ Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4
   - 모델명 하드코딩 자체가 취약 설계 → 동적 탐색으로 해결해야 함
 ```
 
-#### 10단계: 근본 해결 — ListModels API 동적 모델 탐색 `761c3c2`
+#### 10단계: 근본 해결 — ListModels API 동적 모델 탐색 `761c3c2` | ROADMAP: Phase 3 — ResolveModelNameAsync 구현
 
 ```
 커밋: fix: Gemini 모델명 하드코딩 제거 → ListModels API로 사용 가능 모델 동적 탐색
@@ -276,9 +283,10 @@ Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4
   - Phase 3의 모든 문제 근본 해결
 ```
 
-> **Phase 3 디버깅 요약:** 총 10개 커밋, 4개 고유 오류 유형(인증·파싱·버전비호환·모델불일치) 해결.
-> 근본 원인은 '모델명 하드코딩'이었으며, ListModels API 동적 탐색으로 구조적 해결.
-> 상세 의사결정 근거: [`docs/decision-log.md` ADR-003, ADR-004](decision-log.md)
+> **Phase 3 디버깅 요약:** 총 10개 커밋, 4개 고유 오류 유형(인증 오류 · JSON 파싱 실패 · API 버전 비호환 · 모델명 환경별 불일치) 순서대로 해결.
+> 근본 원인: '모델명 하드코딩' → 배포 환경(Render/로컬)에 따라 사용 가능한 모델 목록이 다름.
+> **최종 해결책:** `ResolveModelNameAsync()` — ListModels API로 런타임에 사용 가능 모델 자동 탐색, 결과 1시간 캐시.
+> ROADMAP 연결: Phase 3 — AI 경영 분석 기능 · `AiInsightService.ResolveModelNameAsync()` 구현
 
 ---
 
@@ -321,13 +329,32 @@ Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4
 
 ---
 
-## 주요 기술 결정 요약
+## 주요 기술 결정 — 상세 근거 (ADR 인라인)
 
-| 결정 | 시점 | 근거 |
-|------|------|------|
-| SQLite → PostgreSQL(Supabase) 전환 | Phase 2 | Render 에페머럴 파일시스템으로 SQLite 데이터 소멸 |
-| ORM 미사용 (Dapper) | 설계 단계 | 집계 쿼리 최적화를 위한 순수 SQL 제어 필요 |
-| Anthropic → Google Gemini 전환 | Phase 3 | 무료 할당량 제약 해소 및 안정적 API 운용 |
-| 동적 모델 선택 (`ListModels API`) | Phase 3 디버깅 | 모델명 하드코딩 취약점 제거 → 자동 탐색으로 근본 해결 |
-| `IMemoryCache` 30분 캐시 | Phase 3 | Gemini API 비용 절감 및 응답 속도 개선 |
-| `Promise.all` 병렬 호출 | Phase 1 | 7개 API 순차 호출 대비 응답시간 단축 |
+> 각 결정은 ROADMAP.md 해당 Phase 항목과 연결됩니다.
+
+### Phase 0~1: 아키텍처 및 프론트엔드
+
+| 결정 | 선택 결과 | 탈락 대안 | 근거 | ROADMAP 연결 |
+|------|---------|---------|------|------------|
+| Backend 아키텍처 | Controller → Service → Repository 3계층 + 인터페이스 DI | 단일 Controller 파일 | `IDashboardRepository` Mock 가능 → xUnit 13개 DB 없이 테스트 | Phase 0: 아키텍처 설계 |
+| Frontend 프레임워크 | Vue 3 Composition API + Vite | React + CRA | Composable 재사용, `<script setup>` TypeScript, Vite 즉각 HMR | Phase 1: 프론트엔드 초기화 |
+| 차트 라이브러리 | Apache ECharts | Chart.js | 복합 차트(바+라인 오버레이), 6종 통일 API, `noData` 옵션 | Phase 1: ECharts 패널 구현 |
+| 프론트엔드 API 호출 | `Promise.all` 병렬 7개 동시 호출 | 순차 호출 | ~1400ms → ~250ms (5배 개선) | Phase 2: 프론트-백 연동 |
+
+### Phase 2: 데이터베이스 및 백엔드
+
+| 결정 | 선택 결과 | 탈락 대안 | 근거 | ROADMAP 연결 |
+|------|---------|---------|------|------------|
+| DB 변경 | SQLite → **PostgreSQL (Supabase)** | SQLite + Render Volume ($7/월) | Render 에페머럴 파일시스템 → 배포 시 SQLite 소멸. Supabase 무료 티어로 영속성 확보 | Phase 2: 인프라 전환 |
+| ORM 선택 | **Dapper** (ORM 미사용) | Entity Framework Core | CTE 3중 집계 1회 왕복 · `DATE_TRUNC`/`AGE()` 네이티브 함수 직접 사용 · Change Tracking 오버헤드 없음 | Phase 2: Repository 구현 |
+| DB 연결 형식 | URI 자동 변환 (`NormalizeConnectionString()`) | 키=값 형식 고정 | Render는 `postgresql://` URI 형식 주입, Npgsql은 키=값 형식 필요 → 자동 변환 | Phase 2: 배포 버그 수정 |
+| DB 연결 IP | Supabase Connection Pooler (IPv4 전용 URL) | Supabase 기본 URL | Render 무료 플랜 IPv6 아웃바운드 미지원 → DNS IPv6 해석 실패 → IPv4 풀러로 해결 | Phase 2: 배포 버그 수정 |
+
+### Phase 3: AI 기능
+
+| 결정 | 선택 결과 | 탈락 대안 | 근거 | ROADMAP 연결 |
+|------|---------|---------|------|------------|
+| AI API 변경 | **Google Gemini API** | Anthropic Claude | Anthropic 무료 할당량 소진 → Gemini Flash 1M 토큰/월 무료 | Phase 3: AI 엔진 전환 |
+| 모델 선택 방식 | **ListModels API 동적 탐색** (`ResolveModelNameAsync`) | 모델명 하드코딩 | Render 배포 환경에서 특정 모델명 NOT_FOUND → 런타임 자동 탐색으로 근본 해결 | Phase 3: 모델 동적 선택 |
+| AI 응답 캐싱 | `IMemoryCache` 30분 캐시 | 매 요청 Gemini 호출 | Gemini API 할당량 절약 · 2초 → 10ms 응답 개선 | Phase 3: AI 서비스 최적화 |

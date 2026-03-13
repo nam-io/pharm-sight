@@ -49,7 +49,24 @@
   - `frontend-build` job: Node 20 + `npm ci` + Vite 프로덕션 빌드 검증
 - 로컬 테스트 실행: `cd backend && dotnet test PharmSight.Tests/`
 
-## 6. 🧠 에이전트 메모리 관리 전략 (Agent Memory Strategy)
+## 6. 📋 기술 스택 변경 이력 (Technology Change History)
+
+> **목적:** 초기 설계 결정과 개발 중 발생한 기술 변경을 명시적으로 기록하여 AI가 현재 상태를 정확히 파악하도록 합니다.
+
+| 변경 항목 | 초기 결정 | 최종 결정 | 변경 이유 | 변경 시점 |
+|----------|---------|---------|---------|---------|
+| **데이터베이스** | SQLite (`Microsoft.Data.Sqlite`) | **PostgreSQL (Supabase)** | Render 무료 플랜의 에페머럴(임시) 파일시스템 → 배포 시 SQLite 데이터 소멸 | Phase 2 |
+| **AI API** | Anthropic Claude API | **Google Gemini API** | Anthropic 무료 할당량 소진 → Gemini Flash 무료 티어(1M 토큰/월) 활용 | Phase 3 |
+| **.NET 버전** | .NET 8.0 | **.NET 9.0** | 최신 LTS 버전 채택, 성능 개선 | Phase 2 |
+| **AI 모델 선택** | 하드코딩 모델명 | **ListModels API 동적 탐색** | 배포 환경별 사용 가능 모델이 달라 NOT_FOUND 오류 → 자동 탐색 구현 | Phase 3 |
+| **연결 문자열 형식** | 키=값 형식 | **URI 자동 변환 지원** | Render가 `postgresql://` URI 형식 주입 → `NormalizeConnectionString()` 변환기 구현 | Phase 2 |
+
+**현재 확정된 기술 스택** (위 변경사항 반영 완료):
+- DB: PostgreSQL (Supabase) + Dapper — SQLite 및 Entity Framework 미사용
+- AI: Google Gemini API + `ResolveModelNameAsync()` 동적 모델 탐색 + `IMemoryCache` 30분 캐시
+- Backend: .NET 9.0 Web API (C#)
+
+## 7. 🧠 에이전트 메모리 관리 전략 (Agent Memory Strategy)
 본 프로젝트는 단발성 프롬프트가 아닌, 세션 간 지식 유지를 위해 영구 메모리(Persistent Memory) 전략을 사용합니다.
 - **메모리 저장소:** `.claude/agent-memory/` 디렉토리 내의 마크다운 파일을 활용하여 에이전트 간 상태와 컨텍스트를 공유합니다.
 - **Planner ↔ Close 연계:** `sprint-close` 에이전트가 스프린트를 마감할 때 발생한 기술적 부채나 다음 스프린트의 주의사항을 메모리 파일에 기록하면, 다음 `sprint-planner` 에이전트가 이를 읽고 계획에 반영(Feedback Loop)합니다.
