@@ -2,6 +2,8 @@
 
 약국의 처방·매출·지출 데이터를 한 화면에서 시각화하고, Google Gemini AI가 경영 인사이트를 자동 분석하여 제공하는 통합 AI 대시보드입니다.
 
+[![CI - 빌드 및 테스트](https://github.com/nam-io/pharm-sight/actions/workflows/ci.yml/badge.svg)](https://github.com/nam-io/pharm-sight/actions/workflows/ci.yml)
+
 ![PharmSight AI 대시보드 화면](docs/pharm-sight-intro.png)
 
 ---
