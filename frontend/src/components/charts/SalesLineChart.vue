@@ -16,6 +16,11 @@ use([LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, Titl
 
 const props = defineProps<{ data: MonthlySales[] }>()
 
+/** 데이터가 비어있는지 확인 — 빈 배열이거나 모든 매출이 0인 경우 */
+const isEmpty = computed(() =>
+  props.data.length === 0 || props.data.every(d => d.totalAmount === 0 && d.prescriptionCount === 0)
+)
+
 const option = computed(() => ({
   backgroundColor: 'transparent',
   tooltip: {
@@ -86,5 +91,10 @@ const option = computed(() => ({
 </script>
 
 <template>
-  <VChart :option="option" autoresize class="w-full h-full" />
+  <!-- 빈 데이터 안내 -->
+  <div v-if="isEmpty" class="flex flex-col items-center justify-center h-full text-slate-500 gap-2">
+    <span class="text-3xl opacity-40">📊</span>
+    <p class="text-xs">해당 기간의 매출 데이터가 없습니다.</p>
+  </div>
+  <VChart v-else :option="option" autoresize class="w-full h-full" />
 </template>

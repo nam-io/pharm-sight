@@ -1,4 +1,22 @@
 <script setup lang="ts">
+/**
+ * @view DashboardView
+ * @description 약국 경영 대시보드 메인 뷰.
+ *
+ * [사용자 흐름 — 5단계 상태 전이]
+ * 1. 초기 로딩  → 스켈레톤 UI 표시 (KPI 4개 + 차트 6개 각각 형태별 스켈레톤)
+ * 2. 데이터 표시 → fade-in 트랜지션으로 자연스럽게 콘텐츠 전환
+ * 3. 에러 발생  → 에러 유형별(NETWORK/API/PARSE) 안내 + [다시 시도] 버튼
+ *                  Mock 데이터로 자동 폴백 → 서비스 중단 없음
+ * 4. 사용자 상호작용 → 기간 필터(3/6/12개월), CSV 내보내기, AI 재시도
+ * 5. 피드백    → CSV 내보내기 완료 시 토스트 알림 3초 표시
+ *
+ * [엣지 케이스 대응]
+ * - 빈 데이터: 각 차트 컴포넌트가 isEmpty computed로 "데이터 없음" 안내 표시
+ * - API 실패: Mock 폴백으로 UI 유지 + 에러 패널로 사용자 안내
+ * - AI 실패: AiInsightPanel에서 독립 에러 처리 + 재시도 버튼 (나머지 차트 영향 없음)
+ * - 네트워크 불안정: NETWORK 에러 자동 1회 재시도 (config.ts MAX_NETWORK_RETRIES)
+ */
 import { onMounted, computed, ref } from 'vue'
 import { useDashboardData } from '@/composables/useDashboardData'
 import { useAiInsight } from '@/composables/useAiInsight'
@@ -13,13 +31,13 @@ import DrugCoverageChart from '@/components/charts/DrugCoverageChart.vue'
 const { dashboardData, kpiCards, isLoading, error, errorType, loadAll } = useDashboardData()
 const { insight, isLoading: aiLoading, error: aiError, loadInsight } = useAiInsight()
 
-// 현재 날짜 기준 표시
+// ── 현재 날짜 표시 ───────────────────────────────────────────────────────
 const currentDateLabel = computed(() => {
   const now = new Date()
-  return `📅 ${now.getFullYear()}년 ${now.getMonth() + 1}월 기준`
+  return `${now.getFullYear()}년 ${now.getMonth() + 1}월 기준`
 })
 
-// 기간 필터 — 월별 매출 차트 표시 개월 수 선택 (3 / 6 / 12개월)
+// ── 기간 필터 — 월별 매출 차트 표시 개월 수 선택 ─────────────────────────
 const periodOptions = [
   { label: '최근 3개월', value: 3 },
   { label: '최근 6개월', value: 6 },
@@ -29,16 +47,13 @@ const selectedPeriod = ref(12)
 
 /**
  * 선택된 기간에 따라 월별 매출 데이터를 필터링합니다.
- * 백엔드 재호출 없이 이미 로드된 데이터를 클라이언트에서 슬라이싱합니다.
+ * 백엔드 재호출 없이 이미 로드된 12개월 데이터를 클라이언트에서 슬라이싱합니다.
  */
 const filteredMonthlySales = computed(() =>
   dashboardData.value.monthlySales.slice(-selectedPeriod.value)
 )
 
-/**
- * 에러 유형별 사용자 친화적 안내 메시지를 반환합니다.
- * errorType은 useDashboardData에서 NETWORK | API | PARSE로 분류됩니다.
- */
+// ── 에러 유형별 사용자 친화적 안내 메시지 ────────────────────────────────
 const errorGuideMessage = computed(() => {
   switch (errorType.value) {
     case 'NETWORK':
@@ -52,23 +67,32 @@ const errorGuideMessage = computed(() => {
   }
 })
 
-// 에러 알림 패널 표시 여부 (사용자가 직접 닫을 수 있음)
+// ── 에러 알림 닫기 상태 ──────────────────────────────────────────────────
 const isErrorDismissed = ref(false)
 
-/**
- * 대시보드 및 AI 인사이트를 다시 로드합니다.
- * 에러 발생 후 사용자가 수동으로 재시도할 때 호출됩니다.
- */
+// ── 토스트 알림 ──────────────────────────────────────────────────────────
+const toastMessage = ref('')
+const isToastVisible = ref(false)
+
+function showToast(message: string) {
+  toastMessage.value = message
+  isToastVisible.value = true
+  setTimeout(() => { isToastVisible.value = false }, 3000)
+}
+
+// ── 대시보드 + AI 재로드 ─────────────────────────────────────────────────
 function retryLoad() {
   isErrorDismissed.value = false
   loadAll()
   loadInsight()
 }
 
-/**
- * 대시보드 데이터 전체를 CSV 파일로 내보냅니다.
- * 6개 섹션, BOM 포함 UTF-8 인코딩으로 Excel 한글 깨짐을 방지합니다.
- */
+/** AI 인사이트만 독립적으로 재시도 (AiInsightPanel의 retry 이벤트 핸들러) */
+function retryAiInsight() {
+  loadInsight()
+}
+
+// ── CSV 내보내기 (BOM UTF-8 — Excel 한글 호환) ──────────────────────────
 function exportToCsv() {
   const rows: string[] = []
   const now = new Date()
@@ -109,13 +133,12 @@ function exportToCsv() {
   }
   rows.push('')
 
-  rows.push('# 급여·비급여 지출 비율')
+  rows.push('# 급여/비급여 지출 비율')
   rows.push('구분,지출액(원)')
   for (const d of dashboardData.value.drugCoverage) {
     rows.push(`${d.label},${d.amount}`)
   }
 
-  // BOM 포함 UTF-8로 다운로드 (Excel 한글 깨짐 방지)
   const bom = '\uFEFF'
   const blob = new Blob([bom + rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
@@ -124,9 +147,10 @@ function exportToCsv() {
   link.download = fileName
   link.click()
   URL.revokeObjectURL(url)
+  showToast(`${fileName} 다운로드 완료`)
 }
 
-// 대시보드 데이터와 AI 인사이트를 병렬로 로드
+// ── 초기 로딩 — 대시보드 데이터 + AI 인사이트 병렬 요청 ──────────────────
 onMounted(() => {
   loadAll()
   loadInsight()
@@ -136,7 +160,7 @@ onMounted(() => {
 <template>
   <div class="min-h-screen bg-slate-950 text-slate-100">
 
-    <!-- 헤더 -->
+    <!-- ── 헤더 (sticky) ────────────────────────────────────────────────── -->
     <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
       <div class="max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
@@ -150,16 +174,18 @@ onMounted(() => {
           <span class="hidden sm:inline text-xs text-slate-500 bg-slate-800 px-3 py-1.5 rounded-full">
             {{ currentDateLabel }} · Supabase 연동
           </span>
-          <!-- 연결 상태 배지 -->
-          <span v-if="error" class="text-xs bg-rose-900/50 text-rose-400 border border-rose-800 px-3 py-1.5 rounded-full">
-            ⚠ API 오류 · 샘플 데이터
-          </span>
-          <span v-else-if="isLoading" class="text-xs bg-slate-800 text-slate-400 border border-slate-700 px-3 py-1.5 rounded-full animate-pulse">
-            ⟳ 데이터 로딩 중...
-          </span>
-          <span v-else class="text-xs bg-emerald-900/50 text-emerald-400 border border-emerald-800 px-3 py-1.5 rounded-full">
-            ● 실시간 연동
-          </span>
+          <!-- 연결 상태 배지 — 3가지 상태 시각화 -->
+          <Transition name="fade" mode="out-in">
+            <span v-if="error" key="error" class="text-xs bg-rose-900/50 text-rose-400 border border-rose-800 px-3 py-1.5 rounded-full">
+              ⚠ API 오류 · 샘플 데이터
+            </span>
+            <span v-else-if="isLoading" key="loading" class="text-xs bg-slate-800 text-slate-400 border border-slate-700 px-3 py-1.5 rounded-full animate-pulse">
+              ⟳ 데이터 로딩 중...
+            </span>
+            <span v-else key="connected" class="text-xs bg-emerald-900/50 text-emerald-400 border border-emerald-800 px-3 py-1.5 rounded-full">
+              ● 실시간 연동
+            </span>
+          </Transition>
           <!-- CSV 내보내기 버튼 -->
           <button
             @click="exportToCsv"
@@ -175,46 +201,47 @@ onMounted(() => {
 
     <main class="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
 
-      <!-- ── 에러 알림 패널 (사용자 친화적 안내 + 재시도 버튼) ──────────── -->
-      <div
-        v-if="error && !isErrorDismissed"
-        class="flex items-start gap-4 rounded-xl border border-rose-800/50 bg-rose-950/30 px-5 py-4"
-        role="alert"
-        aria-live="polite"
-      >
-        <span class="mt-0.5 flex-shrink-0 text-xl">⚠️</span>
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-semibold text-rose-300">실시간 데이터 연결 실패</p>
-          <p class="mt-1 text-xs text-rose-400">{{ error }}</p>
-          <p class="mt-1 text-xs text-slate-400">{{ errorGuideMessage }}</p>
-          <p class="mt-2 text-xs text-slate-500">
-            💡 현재 샘플 데이터가 표시되고 있습니다. 실제 약국 데이터를 보려면 아래 버튼을 클릭하세요.
-          </p>
+      <!-- ── 에러 알림 패널 (NETWORK/API/PARSE 유형별 안내 + 재시도) ───── -->
+      <Transition name="slide-fade">
+        <div
+          v-if="error && !isErrorDismissed"
+          class="flex items-start gap-4 rounded-xl border border-rose-800/50 bg-rose-950/30 px-5 py-4"
+          role="alert"
+          aria-live="polite"
+        >
+          <span class="mt-0.5 flex-shrink-0 text-xl">⚠️</span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-rose-300">실시간 데이터 연결 실패</p>
+            <p class="mt-1 text-xs text-rose-400">{{ error }}</p>
+            <p class="mt-1 text-xs text-slate-400">{{ errorGuideMessage }}</p>
+            <p class="mt-2 text-xs text-slate-500">
+              💡 현재 샘플 데이터가 표시되고 있습니다. 실제 약국 데이터를 보려면 아래 버튼을 클릭하세요.
+            </p>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button
+              @click="retryLoad"
+              :disabled="isLoading"
+              class="text-xs bg-rose-900/40 hover:bg-rose-800/60 text-rose-300 border border-rose-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+            >
+              {{ isLoading ? '로딩 중...' : '다시 시도' }}
+            </button>
+            <button
+              @click="isErrorDismissed = true"
+              class="text-slate-600 hover:text-slate-400 transition-colors text-lg leading-none"
+              aria-label="알림 닫기"
+            >
+              ×
+            </button>
+          </div>
         </div>
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <button
-            @click="retryLoad"
-            :disabled="isLoading"
-            class="text-xs bg-rose-900/40 hover:bg-rose-800/60 text-rose-300 border border-rose-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
-          >
-            {{ isLoading ? '로딩 중...' : '다시 시도' }}
-          </button>
-          <button
-            @click="isErrorDismissed = true"
-            class="text-slate-600 hover:text-slate-400 transition-colors text-lg leading-none"
-            aria-label="알림 닫기"
-          >
-            ×
-          </button>
-        </div>
-      </div>
+      </Transition>
 
-      <!-- AI 경영 인사이트 패널 -->
-      <AiInsightPanel :insight="insight" :is-loading="aiLoading" :error="aiError" />
+      <!-- ── AI 경영 인사이트 패널 ────────────────────────────────────────── -->
+      <AiInsightPanel :insight="insight" :is-loading="aiLoading" :error="aiError" @retry="retryAiInsight" />
 
-      <!-- ── KPI 카드 ──────────────────────────────────────────────────── -->
+      <!-- ── KPI 카드 4종 (스켈레톤 → 실제 데이터 트랜지션) ───────────── -->
       <section class="grid grid-cols-2 lg:grid-cols-4 gap-4" aria-label="핵심 경영 지표">
-        <!-- 로딩 스켈레톤 -->
         <template v-if="isLoading">
           <div
             v-for="i in 4"
@@ -229,12 +256,11 @@ onMounted(() => {
             <div class="h-3 w-20 rounded bg-slate-800" />
           </div>
         </template>
-        <!-- 실제 KPI 카드 -->
         <template v-else>
           <div
             v-for="card in kpiCards"
             :key="card.title"
-            class="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors"
+            class="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-all duration-300"
           >
             <div class="flex items-start justify-between mb-3">
               <p class="text-xs text-slate-500 font-medium">{{ card.title }}</p>
@@ -257,7 +283,7 @@ onMounted(() => {
         </template>
       </section>
 
-      <!-- ── 차트 행 1: 매출 추이 + ETC/OTC ────────────────────────────── -->
+      <!-- ── 차트 행 1: 매출 추이 (기간 필터 포함) + ETC/OTC ──────────── -->
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5">
           <div class="mb-4 flex items-start justify-between gap-2">
@@ -265,16 +291,16 @@ onMounted(() => {
               <h2 class="text-sm font-semibold text-slate-200">월별 매출 및 조제 건수 추이</h2>
               <p class="text-xs text-slate-500 mt-0.5">매출(바) · 조제 건수(선) · 기간 선택 가능</p>
             </div>
-            <!-- 기간 필터 버튼 -->
+            <!-- 기간 필터 버튼 그룹 -->
             <div class="flex items-center gap-1 flex-shrink-0" role="group" aria-label="기간 선택">
               <button
                 v-for="opt in periodOptions"
                 :key="opt.value"
                 @click="selectedPeriod = opt.value"
-                class="text-xs px-2 py-1 rounded transition-colors"
+                class="text-xs px-2.5 py-1 rounded transition-all duration-200"
                 :class="selectedPeriod === opt.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'"
+                  ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'"
                 :aria-pressed="selectedPeriod === opt.value"
               >
                 {{ opt.label }}
@@ -282,7 +308,6 @@ onMounted(() => {
             </div>
           </div>
           <div class="h-64">
-            <!-- 로딩 스켈레톤: 막대 차트 형태 -->
             <div v-if="isLoading" class="animate-pulse h-full rounded-lg bg-slate-800/50 flex items-end gap-1 px-4 pb-4 pt-2">
               <div
                 v-for="i in 8" :key="i"
@@ -308,7 +333,7 @@ onMounted(() => {
         </div>
       </section>
 
-      <!-- ── 차트 행 2: 연령대 + 병원별 ──────────────────────────────────── -->
+      <!-- ── 차트 행 2: 연령대 분포 + 처방 기관 TOP 6 ─────────────────── -->
       <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <div class="mb-4">
@@ -337,7 +362,7 @@ onMounted(() => {
         </div>
       </section>
 
-      <!-- ── 차트 행 3: 도매상 지출 + 급여/비급여 ───────────────────────── -->
+      <!-- ── 차트 행 3: 도매상 지출 + 급여/비급여 ─────────────────────── -->
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5">
           <div class="mb-4">
@@ -368,11 +393,68 @@ onMounted(() => {
 
     </main>
 
-    <!-- 푸터 -->
+    <!-- ── 푸터 ───────────────────────────────────────────────────────────── -->
     <footer class="border-t border-slate-800 mt-8 py-4">
       <p class="text-center text-xs text-slate-600">
         PharmSight AI © 2026 · Powered by Google Gemini AI · Supabase 실데이터 연동
       </p>
     </footer>
+
+    <!-- ── 토스트 알림 (CSV 내보내기 등 사용자 피드백) ─────────────────── -->
+    <Transition name="toast">
+      <div
+        v-if="isToastVisible"
+        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-emerald-900/90 border border-emerald-700 text-emerald-200 text-sm px-5 py-3 rounded-xl shadow-lg backdrop-blur"
+        role="status"
+        aria-live="polite"
+      >
+        <span>✅</span>
+        <span>{{ toastMessage }}</span>
+      </div>
+    </Transition>
   </div>
 </template>
+
+<style scoped>
+/* ── 트랜지션: fade (연결 상태 배지 전환) ───────────────── */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* ── 트랜지션: slide-fade (에러 패널 등장/퇴장) ─────────── */
+.slide-fade-enter-active {
+  transition: all 0.3s ease-out;
+}
+.slide-fade-leave-active {
+  transition: all 0.2s ease-in;
+}
+.slide-fade-enter-from {
+  opacity: 0;
+  transform: translateY(-12px);
+}
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* ── 트랜지션: toast (하단 알림 팝업) ────────────────────── */
+.toast-enter-active {
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.toast-leave-active {
+  transition: all 0.25s ease-in;
+}
+.toast-enter-from {
+  opacity: 0;
+  transform: translate(-50%, 16px);
+}
+.toast-leave-to {
+  opacity: 0;
+  transform: translate(-50%, 8px);
+}
+</style>

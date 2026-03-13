@@ -11,6 +11,11 @@ use([PieChart, TooltipComponent, LegendComponent, CanvasRenderer])
 
 const props = defineProps<{ data: DrugTypeSales[] }>()
 
+/** 빈 데이터 엣지 케이스: 배열이 비어있거나 모든 금액이 0인 경우 */
+const isEmpty = computed(() =>
+  props.data.length === 0 || props.data.every(d => d.amount === 0)
+)
+
 const COLORS = ['#3b82f6', '#10b981']
 
 const option = computed(() => ({
@@ -56,5 +61,9 @@ const option = computed(() => ({
 </script>
 
 <template>
-  <VChart :option="option" autoresize class="w-full h-full" />
+  <div v-if="isEmpty" class="flex flex-col items-center justify-center h-full text-slate-500 gap-2">
+    <span class="text-3xl opacity-40">💊</span>
+    <p class="text-xs">의약품 매출 데이터가 없습니다.</p>
+  </div>
+  <VChart v-else :option="option" autoresize class="w-full h-full" />
 </template>

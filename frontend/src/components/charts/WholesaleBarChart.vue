@@ -11,6 +11,11 @@ use([BarChart, GridComponent, TooltipComponent, CanvasRenderer])
 
 const props = defineProps<{ data: WholesaleExpense[] }>()
 
+/** 빈 데이터 엣지 케이스 */
+const isEmpty = computed(() =>
+  props.data.length === 0 || props.data.every(d => d.amount === 0)
+)
+
 const COLORS = ['#f97316', '#fb923c', '#fdba74', '#fcd34d', '#fde68a']
 
 const option = computed(() => {
@@ -66,5 +71,9 @@ const option = computed(() => {
 </script>
 
 <template>
-  <VChart :option="option" autoresize class="w-full h-full" />
+  <div v-if="isEmpty" class="flex flex-col items-center justify-center h-full text-slate-500 gap-2">
+    <span class="text-3xl opacity-40">📦</span>
+    <p class="text-xs">도매상 지출 데이터가 없습니다.</p>
+  </div>
+  <VChart v-else :option="option" autoresize class="w-full h-full" />
 </template>
