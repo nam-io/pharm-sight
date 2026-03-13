@@ -264,6 +264,425 @@ public async Task<KpiSummary> GetKpiSummaryAsync()
 
 ---
 
+## 🧪 단위 테스트 코드 전문 및 CI/CD 파이프라인
+
+> **테스트 환경:** xUnit 2.9.2 · Moq 4.20.72 · .NET 9.0
+> **테스트 파일 경로:** `backend/PharmSight.Tests/Services/`
+> **CI 파이프라인:** `.github/workflows/ci.yml` — push/PR 시 자동 실행
+
+### dotnet test 실행 결과 (13/13 전체 통과)
+
+```
+$ dotnet test backend/PharmSight.Tests/PharmSight.Tests.csproj --verbosity normal
+
+  통과 AiInsightServiceTests.GetInsightAsync_두번_호출시_캐시를_반환한다             [60 ms]
+  통과 AiInsightServiceTests.GetInsightAsync_API키_없으면_GeneratedAt이_설정된다      [1 ms]
+  통과 AiInsightServiceTests.GetInsightAsync_API키_없으면_Repository_호출하지_않는다  [3 ms]
+  통과 AiInsightServiceTests.GetInsightAsync_API키_없으면_안내메시지를_반환한다        [9 ms]
+  통과 DashboardServiceTests.GetDrugTypeSalesAsync_ETC_OTC_두_항목이_반환된다         [71 ms]
+  통과 DashboardServiceTests.GetMonthlySalesAsync_Repository에서_반환된_데이터를_그대로_반환한다 [3 ms]
+  통과 DashboardServiceTests.GetMonthlySalesAsync_빈_결과도_정상_반환된다             [1 ms]
+  통과 DashboardServiceTests.GetWholesaleExpensesAsync_도매상별_지출이_반환된다       [1 ms]
+  통과 DashboardServiceTests.GetHospitalPrescriptionsAsync_TOP6_기관이_반환된다       [1 ms]
+  통과 DashboardServiceTests.GetDrugCoverageAsync_급여_비급여_두_항목이_반환된다      [1 ms]
+  통과 DashboardServiceTests.GetKpiSummaryAsync_전월_매출_없을때_변화율은_0이다       [1 ms]
+  통과 DashboardServiceTests.GetPatientAgeGroupsAsync_연령대_데이터가_반환된다        [3 ms]
+  통과 DashboardServiceTests.GetKpiSummaryAsync_KPI_요약이_반환된다                  [< 1 ms]
+
+총 테스트 수: 13  /  통과: 13  /  경고 0개  /  오류 0개
+경과 시간: 00:00:05.07
+```
+
+### DashboardServiceTests.cs — 실제 파일 전체 코드
+
+**파일:** `backend/PharmSight.Tests/Services/DashboardServiceTests.cs`
+
+```csharp
+using Microsoft.Extensions.Logging;
+using Moq;
+using PharmSight.Api.Models;
+using PharmSight.Api.Repositories.Interfaces;
+using PharmSight.Api.Services;
+
+namespace PharmSight.Tests.Services;
+
+/// <summary>
+/// DashboardService 단위 테스트.
+/// IDashboardRepository를 Moq로 Mocking하여 Service 계층의 로직만 검증합니다.
+/// </summary>
+public class DashboardServiceTests
+{
+    private readonly Mock<IDashboardRepository> _repositoryMock;
+    private readonly Mock<ILogger<DashboardService>> _loggerMock;
+    private readonly DashboardService _service;
+
+    public DashboardServiceTests()
+    {
+        _repositoryMock = new Mock<IDashboardRepository>();
+        _loggerMock = new Mock<ILogger<DashboardService>>();
+        _service = new DashboardService(_repositoryMock.Object, _loggerMock.Object);
+    }
+
+    [Fact]
+    public async Task GetMonthlySalesAsync_Repository에서_반환된_데이터를_그대로_반환한다()
+    {
+        // Arrange
+        var expected = new List<MonthlySales>
+        {
+            new("2026-01", 5_200_000m, 132L),
+            new("2026-02", 4_800_000m, 118L),
+            new("2026-03", 5_500_000m, 140L),
+        };
+        _repositoryMock.Setup(r => r.GetMonthlySalesAsync()).ReturnsAsync(expected);
+
+        // Act
+        var result = (await _service.GetMonthlySalesAsync()).ToList();
+
+        // Assert
+        Assert.Equal(3, result.Count);
+        Assert.Equal("2026-01", result[0].Month);
+        Assert.Equal(5_200_000m, result[0].TotalAmount);
+        _repositoryMock.Verify(r => r.GetMonthlySalesAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetMonthlySalesAsync_빈_결과도_정상_반환된다()
+    {
+        // Arrange
+        _repositoryMock.Setup(r => r.GetMonthlySalesAsync())
+                       .ReturnsAsync(Enumerable.Empty<MonthlySales>());
+        // Act
+        var result = await _service.GetMonthlySalesAsync();
+        // Assert
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetDrugTypeSalesAsync_ETC_OTC_두_항목이_반환된다()
+    {
+        // Arrange
+        var expected = new List<DrugTypeSales>
+        {
+            new("ETC", "전문의약품 (ETC)", 3_800_000m),
+            new("OTC", "일반의약품 (OTC)", 1_400_000m),
+        };
+        _repositoryMock.Setup(r => r.GetDrugTypeSalesAsync()).ReturnsAsync(expected);
+        // Act
+        var result = (await _service.GetDrugTypeSalesAsync()).ToList();
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, d => d.Type == "ETC");
+        Assert.Contains(result, d => d.Type == "OTC");
+        _repositoryMock.Verify(r => r.GetDrugTypeSalesAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPatientAgeGroupsAsync_연령대_데이터가_반환된다()
+    {
+        // Arrange
+        var expected = new List<PatientAgeGroup>
+        {
+            new("20-29세", 15L),
+            new("30-39세", 22L),
+            new("60-69세", 38L),
+        };
+        _repositoryMock.Setup(r => r.GetPatientAgeGroupsAsync()).ReturnsAsync(expected);
+        // Act
+        var result = (await _service.GetPatientAgeGroupsAsync()).ToList();
+        // Assert
+        Assert.Equal(3, result.Count);
+        Assert.Equal(38L, result.First(a => a.AgeGroup == "60-69세").Count);
+        _repositoryMock.Verify(r => r.GetPatientAgeGroupsAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetHospitalPrescriptionsAsync_TOP6_기관이_반환된다()
+    {
+        // Arrange
+        var expected = new List<HospitalPrescription>
+        {
+            new("연세내과의원", 85L),
+            new("푸른하늘소아과", 72L),
+            new("행복정형외과", 60L),
+        };
+        _repositoryMock.Setup(r => r.GetHospitalPrescriptionsAsync()).ReturnsAsync(expected);
+        // Act
+        var result = (await _service.GetHospitalPrescriptionsAsync()).ToList();
+        // Assert
+        Assert.Equal(3, result.Count);
+        Assert.Equal("연세내과의원", result[0].HospitalName);
+        _repositoryMock.Verify(r => r.GetHospitalPrescriptionsAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetWholesaleExpensesAsync_도매상별_지출이_반환된다()
+    {
+        // Arrange
+        var expected = new List<WholesaleExpense>
+        {
+            new("지오영", 2_100_000m),
+            new("백제약품", 1_850_000m),
+        };
+        _repositoryMock.Setup(r => r.GetWholesaleExpensesAsync()).ReturnsAsync(expected);
+        // Act
+        var result = (await _service.GetWholesaleExpensesAsync()).ToList();
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal(2_100_000m, result[0].Amount);
+        _repositoryMock.Verify(r => r.GetWholesaleExpensesAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetDrugCoverageAsync_급여_비급여_두_항목이_반환된다()
+    {
+        // Arrange
+        var expected = new List<DrugCoverage>
+        {
+            new("급여 의약품", 3_200_000m),
+            new("비급여 의약품", 750_000m),
+        };
+        _repositoryMock.Setup(r => r.GetDrugCoverageAsync()).ReturnsAsync(expected);
+        // Act
+        var result = (await _service.GetDrugCoverageAsync()).ToList();
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, d => d.Label == "급여 의약품");
+        _repositoryMock.Verify(r => r.GetDrugCoverageAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetKpiSummaryAsync_KPI_요약이_반환된다()
+    {
+        // Arrange
+        var expected = new KpiSummary(
+            CurrentMonthSales: 5_500_000m,
+            CurrentMonthPrescriptions: 140L,
+            CurrentMonthPatients: 95L,
+            CurrentMonthOrderAmount: 2_100_000m,
+            SalesChangeRate: 8.3m,
+            PrescriptionChangeRate: 5.1m
+        );
+        _repositoryMock.Setup(r => r.GetKpiSummaryAsync()).ReturnsAsync(expected);
+        // Act
+        var result = await _service.GetKpiSummaryAsync();
+        // Assert
+        Assert.Equal(5_500_000m, result.CurrentMonthSales);
+        Assert.Equal(140L, result.CurrentMonthPrescriptions);
+        Assert.Equal(8.3m, result.SalesChangeRate);
+        _repositoryMock.Verify(r => r.GetKpiSummaryAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetKpiSummaryAsync_전월_매출_없을때_변화율은_0이다()
+    {
+        // Arrange — 전월 매출 0 → 변화율 0 시나리오 (0 나눗셈 방어)
+        var expected = new KpiSummary(
+            CurrentMonthSales: 3_200_000m,
+            CurrentMonthPrescriptions: 80L,
+            CurrentMonthPatients: 60L,
+            CurrentMonthOrderAmount: 1_500_000m,
+            SalesChangeRate: 0m,
+            PrescriptionChangeRate: 0m
+        );
+        _repositoryMock.Setup(r => r.GetKpiSummaryAsync()).ReturnsAsync(expected);
+        // Act
+        var result = await _service.GetKpiSummaryAsync();
+        // Assert
+        Assert.Equal(0m, result.SalesChangeRate);
+        Assert.Equal(0m, result.PrescriptionChangeRate);
+    }
+}
+```
+
+### AiInsightServiceTests.cs — 실제 파일 전체 코드
+
+**파일:** `backend/PharmSight.Tests/Services/AiInsightServiceTests.cs`
+
+```csharp
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Moq;
+using PharmSight.Api.Models;
+using PharmSight.Api.Repositories.Interfaces;
+using PharmSight.Api.Services;
+
+namespace PharmSight.Tests.Services;
+
+/// <summary>
+/// AiInsightService 단위 테스트.
+/// API 키 미설정 시 Graceful Degradation 동작 및 캐시 히트 동작을 검증합니다.
+/// </summary>
+public class AiInsightServiceTests
+{
+    private readonly Mock<IDashboardRepository> _repositoryMock;
+    private readonly Mock<IHttpClientFactory> _httpClientFactoryMock;
+    private readonly Mock<ILogger<AiInsightService>> _loggerMock;
+
+    public AiInsightServiceTests()
+    {
+        _repositoryMock = new Mock<IDashboardRepository>();
+        _httpClientFactoryMock = new Mock<IHttpClientFactory>();
+        _loggerMock = new Mock<ILogger<AiInsightService>>();
+    }
+
+    private AiInsightService CreateService(string apiKey = "")
+    {
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Gemini:ApiKey"] = apiKey
+            })
+            .Build();
+
+        return new AiInsightService(
+            _repositoryMock.Object,
+            _httpClientFactoryMock.Object,
+            cache,
+            _loggerMock.Object,
+            config
+        );
+    }
+
+    [Fact]
+    public async Task GetInsightAsync_API키_없으면_안내메시지를_반환한다()
+    {
+        // Arrange — API 키 미설정
+        var service = CreateService(apiKey: "");
+
+        // Act
+        var result = await service.GetInsightAsync();
+
+        // Assert — 예외를 던지지 않고 안내 메시지 반환 (Graceful Degradation)
+        Assert.NotNull(result);
+        Assert.NotEmpty(result.Summary);
+        Assert.Contains("API", result.Summary);
+    }
+
+    [Fact]
+    public async Task GetInsightAsync_API키_없으면_Repository_호출하지_않는다()
+    {
+        // Arrange
+        var service = CreateService(apiKey: "");
+
+        // Act
+        await service.GetInsightAsync();
+
+        // Assert — API 키 없을 때 불필요한 DB 조회 없음
+        _repositoryMock.Verify(r => r.GetKpiSummaryAsync(), Times.Never);
+        _repositoryMock.Verify(r => r.GetMonthlySalesAsync(), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetInsightAsync_API키_없으면_GeneratedAt이_설정된다()
+    {
+        // Arrange
+        var before = DateTime.UtcNow.AddSeconds(-1);
+        var service = CreateService(apiKey: "");
+
+        // Act
+        var result = await service.GetInsightAsync();
+
+        // Assert — 타임스탬프 정상 설정 확인
+        Assert.True(result.GeneratedAt >= before);
+    }
+
+    [Fact]
+    public async Task GetInsightAsync_두번_호출시_캐시를_반환한다()
+    {
+        // Arrange — API 키 없음 → 첫 호출에서 결과 캐시됨
+        var service = CreateService(apiKey: "");
+
+        // Act
+        var first = await service.GetInsightAsync();
+        var second = await service.GetInsightAsync();
+
+        // Assert — 동일 GeneratedAt → IMemoryCache 캐시 히트 확인
+        Assert.Equal(first.GeneratedAt, second.GeneratedAt);
+    }
+}
+```
+
+### .github/workflows/ci.yml — 실제 파일 전체 코드
+
+**파일:** `.github/workflows/ci.yml` — push/PR 시 자동 트리거
+
+```yaml
+name: CI - 빌드 및 테스트 자동화
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+    branches: [master, develop]
+
+jobs:
+  backend-test:
+    name: 백엔드 빌드 및 xUnit 단위 테스트
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: .NET 9.0 설정
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: NuGet 패키지 복원 (API)
+        run: dotnet restore backend/PharmSight.Api.csproj
+
+      - name: NuGet 패키지 복원 (Tests)
+        run: dotnet restore backend/PharmSight.Tests/PharmSight.Tests.csproj
+
+      - name: 백엔드 빌드 (Release)
+        run: dotnet build backend/PharmSight.Api.csproj --no-restore --configuration Release
+
+      - name: xUnit 단위 테스트 실행
+        run: dotnet test backend/PharmSight.Tests/PharmSight.Tests.csproj --configuration Release --verbosity normal --logger "trx;LogFileName=test-results.trx"
+
+      - name: 테스트 결과 업로드 (TRX Artifact)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results
+          path: backend/PharmSight.Tests/TestResults/*.trx
+
+  frontend-build:
+    name: 프론트엔드 빌드 검증 (Vite)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 20 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: NPM 패키지 설치
+        run: npm ci --prefix frontend
+
+      - name: 프론트엔드 프로덕션 빌드 검증
+        run: npm run build --prefix frontend
+        env:
+          VITE_API_BASE_URL: https://pharm-sight.onrender.com
+```
+
+| job | 역할 |
+|-----|------|
+| `backend-test` | .NET 9.0 설치 → `dotnet restore` → `dotnet build --configuration Release` → `dotnet test` 13개 → TRX 결과 Artifact 업로드 |
+| `frontend-build` | Node 20 설치 → `npm ci` → `npm run build` (Vite 프로덕션 빌드 검증) |
+
+> 상세 테스트 전략: [`docs/sprint/sprint4.md`](docs/sprint/sprint4.md)
+
+---
+
 ## 주요 기능 (구현 완료)
 
 > **라이브 데모:** [https://pharm-sight-frontend.vercel.app](https://pharm-sight-frontend.vercel.app) — 실제 UI를 직접 확인하세요.
@@ -738,6 +1157,9 @@ $ dotnet test backend/PharmSight.Tests/PharmSight.Tests.csproj --verbosity norma
 총 테스트 수: 13  /  통과: 13  /  경고 0개  /  오류 0개
 경과 시간: 00:00:05.07
 ```
+
+> **전체 테스트 코드 (DashboardServiceTests.cs · AiInsightServiceTests.cs) 및 ci.yml 전체:**
+> README 상단 [🧪 단위 테스트 코드 전문 및 CI/CD 파이프라인](#-단위-테스트-코드-전문-및-cicd-파이프라인) 섹션에 실제 파일 코드 전문이 포함되어 있습니다.
 
 #### DashboardServiceTests.cs 전체 코드
 
