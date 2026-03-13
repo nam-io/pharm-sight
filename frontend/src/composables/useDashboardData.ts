@@ -27,7 +27,7 @@ const MOCK_DATA: DashboardData = {
     { month: '2025-02', totalAmount: 16800000, prescriptionCount: 420 },
   ],
   drugTypeSales: [
-    { type: 'Rx', label: '전문의약품 (Rx)', amount: 118600000 },
+    { type: 'ETC', label: '전문의약품 (ETC)', amount: 118600000 },
     { type: 'OTC', label: '일반의약품 (OTC)', amount: 42200000 },
   ],
   patientAgeGroups: [

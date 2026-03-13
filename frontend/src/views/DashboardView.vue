@@ -102,8 +102,8 @@ onMounted(() => {
 
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <div class="mb-4">
-            <h2 class="text-sm font-semibold text-slate-200">Rx vs OTC 매출 비중</h2>
-            <p class="text-xs text-slate-500 mt-0.5">전문의약품 vs 일반의약품</p>
+            <h2 class="text-sm font-semibold text-slate-200">ETC vs OTC 매출 비중</h2>
+            <p class="text-xs text-slate-500 mt-0.5">전문의약품(ETC) vs 일반의약품(OTC)</p>
           </div>
           <div class="h-64">
             <DrugTypePieChart :data="dashboardData.drugTypeSales" />

@@ -102,7 +102,7 @@ public class AiInsightService : IAiInsightService
             .Select(m => $"{m.Month} {m.TotalAmount / 10000:F0}만원({m.PrescriptionCount}건)"));
         var topHospitals = string.Join(", ", hospitals.Take(3)
             .Select(h => $"{h.HospitalName}({h.Count}건)"));
-        var rxSales = drugType.FirstOrDefault(d => d.Type == "Rx")?.Amount ?? 0;
+        var rxSales = drugType.FirstOrDefault(d => d.Type == "ETC")?.Amount ?? 0;
         var otcSales = drugType.FirstOrDefault(d => d.Type == "OTC")?.Amount ?? 0;
         var rxRatio = rxSales + otcSales > 0
             ? (double)rxSales / (double)(rxSales + otcSales) * 100 : 0;
@@ -126,7 +126,7 @@ public class AiInsightService : IAiInsightService
             "=== 최근 3개월 매출 추이 ===\n" +
             $"{recentMonths}\n\n" +
             "=== 약품 유형별 매출 ===\n" +
-            $"- 전문의약품(Rx): {rxSales / 10000:F0}만원 ({rxRatio:F0}%)\n" +
+            $"- 전문의약품(ETC): {rxSales / 10000:F0}만원 ({rxRatio:F0}%)\n" +
             $"- 일반의약품(OTC): {otcSales / 10000:F0}만원 ({100 - rxRatio:F0}%)\n\n" +
             "=== 주요 처방 의료기관 TOP 3 ===\n" +
             $"{topHospitals}\n\n" +

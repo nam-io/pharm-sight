@@ -69,11 +69,11 @@ public class DashboardRepository : IDashboardRepository
         const string simpleSql = """
             SELECT
                 CASE
-                    WHEN s."PrescriptionId" IS NOT NULL THEN 'Rx'
+                    WHEN s."PrescriptionId" IS NOT NULL THEN 'ETC'
                     ELSE 'OTC'
                 END AS "Type",
                 CASE
-                    WHEN s."PrescriptionId" IS NOT NULL THEN '전문의약품 (Rx)'
+                    WHEN s."PrescriptionId" IS NOT NULL THEN '전문의약품 (ETC)'
                     ELSE '일반의약품 (OTC)'
                 END AS "Label",
                 SUM(s."Amount") AS "Amount"

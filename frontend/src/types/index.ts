@@ -7,7 +7,7 @@ export interface MonthlySales {
 
 /** 약품 유형별 매출 비중 (Rx/OTC) */
 export interface DrugTypeSales {
-  type: 'Rx' | 'OTC'
+  type: 'ETC' | 'OTC'
   label: string
   amount: number
 }
