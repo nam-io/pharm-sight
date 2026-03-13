@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, computed } from 'vue'
 import { useDashboardData } from '@/composables/useDashboardData'
 import SalesLineChart from '@/components/charts/SalesLineChart.vue'
 import DrugTypePieChart from '@/components/charts/DrugTypePieChart.vue'
@@ -9,6 +9,12 @@ import WholesaleBarChart from '@/components/charts/WholesaleBarChart.vue'
 import DrugCoverageChart from '@/components/charts/DrugCoverageChart.vue'
 
 const { dashboardData, kpiCards, isLoading, error, loadAll } = useDashboardData()
+
+// 현재 날짜 기준 표시 (예: 2026년 3월 기준)
+const currentDateLabel = computed(() => {
+  const now = new Date()
+  return `📅 ${now.getFullYear()}년 ${now.getMonth() + 1}월 기준`
+})
 
 // 컴포넌트 마운트 시 API 데이터 로드 (VITE_API_BASE_URL 설정 시 실제 API 호출)
 onMounted(() => loadAll())
@@ -29,10 +35,10 @@ onMounted(() => loadAll())
         </div>
         <div class="flex items-center gap-4">
           <span class="text-xs text-slate-500 bg-slate-800 px-3 py-1.5 rounded-full">
-            📅 2025년 2월 기준 · Mock 데이터
+            {{ currentDateLabel }} · Supabase 연동
           </span>
           <span v-if="error" class="text-xs bg-rose-900/50 text-rose-400 border border-rose-800 px-3 py-1.5 rounded-full">
-            ⚠ API 오류 · Mock 데이터
+            ⚠ API 오류 · 임시 데이터
           </span>
           <span v-else-if="isLoading" class="text-xs bg-slate-800 text-slate-400 border border-slate-700 px-3 py-1.5 rounded-full">
             ⟳ 데이터 로딩 중...
