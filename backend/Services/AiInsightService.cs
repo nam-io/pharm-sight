@@ -82,10 +82,10 @@ public class AiInsightService : IAiInsightService
         {
             _logger.LogError(ex, "AI 인사이트 생성 중 오류 발생");
             return new AiInsight(
-                "데이터 분석 중 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+                $"[진단중] {ex.GetType().Name}: {ex.Message}",
                 [],
                 [],
-                "대시보드 데이터는 정상적으로 표시되고 있습니다.",
+                ex.InnerException?.Message ?? ex.StackTrace?.Split('\n').FirstOrDefault() ?? "없음",
                 DateTime.UtcNow
             );
         }
