@@ -76,3 +76,4 @@ SELECT
     (random() * 800000 + 100000)::numeric(12,2),
     CURRENT_DATE - (INTERVAL '1 day' * (random() * 395)::int)
 FROM generate_series(1, 300) AS t(n);
++
