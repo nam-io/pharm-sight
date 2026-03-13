@@ -134,11 +134,59 @@ public class AiInsightService : IAiInsightService
             jsonSchema;
     }
 
+    /// <summary>
+    /// 계정에서 실제 사용 가능한 Gemini 모델명을 동적으로 조회합니다.
+    /// 결과는 1시간 캐시합니다.
+    /// </summary>
+    private async Task<string> ResolveModelNameAsync()
+    {
+        const string modelCacheKey = "gemini_model_name";
+        if (_cache.TryGetValue(modelCacheKey, out string? cached) && cached is not null)
+            return cached;
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient("Gemini");
+            var res = await client.GetAsync(
+                $"https://generativelanguage.googleapis.com/v1beta/models?key={_apiKey}");
+            var body = await res.Content.ReadAsStringAsync();
+
+            if (res.IsSuccessStatusCode)
+            {
+                using var doc = JsonDocument.Parse(body);
+                string? flashModel = null, proModel = null;
+
+                foreach (var model in doc.RootElement.GetProperty("models").EnumerateArray())
+                {
+                    var name = model.GetProperty("name").GetString() ?? "";
+                    if (!model.TryGetProperty("supportedGenerationMethods", out var methods)) continue;
+                    if (!methods.EnumerateArray().Any(m => m.GetString() == "generateContent")) continue;
+
+                    var shortName = name.Replace("models/", "");
+                    if (flashModel == null && shortName.Contains("flash")) flashModel = shortName;
+                    if (proModel == null && shortName.Contains("pro") && !shortName.Contains("vision")) proModel = shortName;
+                }
+
+                var chosen = flashModel ?? proModel ?? "gemini-pro";
+                _logger.LogInformation("Gemini 사용 모델 선택: {Model}", chosen);
+                _cache.Set(modelCacheKey, chosen, TimeSpan.FromHours(1));
+                return chosen;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Gemini 모델 목록 조회 실패, 기본값 사용");
+        }
+
+        return "gemini-pro";
+    }
+
     /// <summary>Google Gemini API를 호출하고 텍스트 응답을 반환합니다.</summary>
     private async Task<string> CallGeminiAsync(string prompt)
     {
+        var model = await ResolveModelNameAsync();
         var client = _httpClientFactory.CreateClient("Gemini");
-        var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={_apiKey}";
+        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={_apiKey}";
 
         var requestBody = new
         {
@@ -153,7 +201,7 @@ public class AiInsightService : IAiInsightService
 
         if (!response.IsSuccessStatusCode)
             throw new InvalidOperationException(
-                $"Gemini API {(int)response.StatusCode}: {responseBody}");
+                $"Gemini API {(int)response.StatusCode} (model={model}): {responseBody}");
 
         using var result = JsonDocument.Parse(responseBody);
         return result.RootElement
