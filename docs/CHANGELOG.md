@@ -89,42 +89,206 @@ Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4
 
 > ROADMAP: Phase 3 · Sprint 3
 > **주목:** 이 Phase에서 AI API 선택 변경 및 집중 디버깅이 이루어졌습니다.
+> 상세 기술 의사결정: [`docs/decision-log.md`](decision-log.md)
 
 ### AI 초기 구현 (Anthropic → Gemini 전환)
 
-| 커밋 | 해시 | ROADMAP 항목 |
-|------|------|--------------|
-| feat: Claude AI 기반 약국 경영 인사이트 대시보드 추가 | `c7e1ce4` | Phase 3: AI 서비스 초기 구현 |
-| fix: AI 인사이트 컨트롤러 라우트 수정 (api/aiinsight → api/ai) | `f94060e` | Phase 3: API 라우팅 수정 |
+| 커밋 | 해시 | 작업 내용 | 의사결정 근거 |
+|------|------|----------|-------------|
+| feat: Claude AI 기반 약국 경영 인사이트 대시보드 추가 | `c7e1ce4` | `AiInsightService.cs`, `AiInsightController.cs`, `AiInsightPanel.vue` 초기 구현 | Anthropic API를 1차 선택. 요약·하이라이트·경고·추천 4개 섹션 구조 정의 |
+| fix: AI 인사이트 컨트롤러 라우트 수정 (api/aiinsight → api/ai) | `f94060e` | 라우팅 오류 수정 | `[Route("api/aiinsight")]` → `[Route("api/ai")]` — 프론트엔드 `useAiInsight.ts`의 호출 경로와 불일치 발견 후 즉시 수정 |
 
-### Gemini API 디버깅 과정 (기술 결정 추적)
+---
 
-> **이 섹션은 실제 문제 해결 과정을 보여줍니다.** Anthropic API에서 Gemini API로 전환 후
-> 올바른 API 버전·모델명·요청 형식을 찾는 과정에서 발생한 시행착오 이력입니다.
+### Gemini API 통합 — 단계별 디버깅 타임라인
 
-| 커밋 | 해시 | 기술적 맥락 |
-|------|------|-------------|
-| `debug: AI 인사이트 예외 원인 진단용 에러 메시지 노출` | `91d8e2a` | 예외 내용이 숨겨져 있어 원인 불명 → 응답 본문 노출로 디버깅 |
-| `feat: AI 엔진 Anthropic → Google Gemini 2.0 Flash 전환` | `5ff16a7` | 무료 할당량 제약으로 Gemini로 전환 결정 |
-| `debug: Anthropic API 오류 응답 본문 노출로 400 원인 진단` | `d87c0d8` | 전환 과정 중 구버전 Anthropic 코드 잔존 → 400 오류 원인 추적 |
-| `fix: Gemini 모델 gemini-2.0-flash → gemini-1.5-flash 변경 (무료 할당량 확보)` | `e5cd4dc` | 2.0-flash는 유료 할당량 → 무료 1.5-flash로 변경 |
-| `debug: AI 오류 원인 재진단` | `1c7a190` | API 응답 파싱 오류 추가 진단 |
-| `fix: Gemini API v1beta → v1, 모델명 gemini-1.5-flash-latest 로 변경` | `cf3f5f0` | v1beta 일부 파라미터 비호환 발견 |
-| `fix: Gemini v1 API 비호환 generationConfig.responseMimeType 필드 제거` | `9f5c645` | v1에서 responseMimeType 필드 미지원 확인 |
-| `fix: Gemini API v1beta + gemini-1.5-flash 조합으로 재변경` | `116718e` | v1beta가 더 안정적임을 확인, 롤백 |
-| `debug: AI 오류 원인 재진단` | `8be6235` | 최종 오류 원인 확인 (모델명 불일치) |
-| `fix: Gemini 모델명 하드코딩 제거 → ListModels API로 사용 가능 모델 동적 탐색` | `761c3c2` | **근본 해결:** 모델명 변경에 유연하게 대응하는 동적 모델 선택 구현 |
+> **배경:** Anthropic API 초기 통합 후 무료 할당량 소진 문제 발생 → Google Gemini API로 전환 결정.
+> 전환 과정에서 API 버전·모델명·요청 형식의 세 가지 축으로 문제가 연속 발생했으며,
+> 각 단계의 가설 수립 → 코드 수정 → 배포 검증 → 재진단 사이클을 기록합니다.
 
-> **결론:** 위 디버깅 과정을 통해 `AiInsightService.ResolveModelNameAsync()`
-> (ListModels API로 실제 사용 가능 모델을 런타임에 자동 선택, 1시간 캐시)를 구현함.
-> 이는 향후 Gemini 모델명 변경에도 코드 수정 없이 대응 가능한 구조.
+#### 1단계: 초기 오류 진단 환경 구축 `91d8e2a`
 
-### AI 기능 안정화
+```
+커밋: debug: AI 인사이트 예외 원인 진단용 에러 메시지 노출
 
-| 커밋 | 해시 | ROADMAP 항목 |
-|------|------|--------------|
-| style: 약품 유형 표기 Rx → ETC 전면 변경 | `7056ae4` | Phase 3: UX 개선 |
-| docs: sprint1, sprint3 완료 상태 반영 및 ROADMAP.md Phase 3 완료 업데이트 | `31196e3` | Phase 3: 문서화 |
+문제 상황:
+  - AI 인사이트 API 호출 시 500 응답 반환
+  - GlobalExceptionMiddleware가 예외 스택 트레이스를 숨기도록 설계됨
+    → 운영 환경에서는 보안상 올바른 동작이지만, 원인 파악 불가
+
+조치:
+  - AiInsightController에 임시 try-catch 추가
+  - exception.ToString() 전체를 응답 본문에 노출
+  - 목적: Render 배포 로그 없이 브라우저에서 직접 오류 확인
+
+결과:
+  - 오류 메시지 가시화 → Anthropic SDK 인증 오류(401) 확인
+```
+
+#### 2단계: Anthropic → Gemini 전환 결정 `5ff16a7`
+
+```
+커밋: feat: AI 엔진 Anthropic → Google Gemini 2.0 Flash 전환
+
+전환 근거 (ADR-003 참조: docs/decision-log.md):
+  - Anthropic API 무료 할당량: 월 제한 낮음 → 해커톤 중 소진 위험
+  - Google Gemini Flash: 무료 티어 할당량 충분 (1M 토큰/월)
+  - Gemini ListModels API: 사용 가능 모델 동적 탐색 가능
+
+변경 내용:
+  - HttpClient 기반 직접 REST 호출로 구현 (SDK 미사용)
+  - 초기 모델: gemini-2.0-flash
+  - 프롬프트: 약국 경영 데이터 JSON → 요약·하이라이트·경고·추천 생성
+```
+
+#### 3단계: 전환 후 Anthropic 잔존 코드 발견 `d87c0d8`
+
+```
+커밋: debug: Anthropic API 오류 응답 본문 노출로 400 원인 진단
+
+문제 상황:
+  - Gemini 전환 후에도 400 Bad Request 계속 발생
+  - 예상: Gemini API 요청 형식 문제
+  - 실제 원인: AiInsightService에 Anthropic API 요청 헤더
+    (x-api-key, anthropic-version)가 잔존
+
+조치:
+  - Anthropic API 응답 본문 전체를 로그에 노출
+  - 응답: {"error": {"type": "authentication_error"}} → Anthropic 서버 응답 확인
+  - 코드 전체 점검 → Anthropic 헤더 참조 코드 완전 제거
+
+교훈:
+  - API 전환 시 헤더·인증 코드를 별도 레이어로 분리해야 잔존 위험 감소
+```
+
+#### 4단계: Gemini 유료 모델 → 무료 모델 변경 `e5cd4dc`
+
+```
+커밋: fix: Gemini 모델 gemini-2.0-flash → gemini-1.5-flash 변경 (무료 할당량 확보)
+
+문제 상황:
+  - gemini-2.0-flash: 2025년 당시 유료 할당량 적용 모델
+  - API 응답: {"error": {"code": 429, "message": "Resource exhausted"}}
+
+조치:
+  - 모델명을 gemini-1.5-flash로 변경
+  - gemini-1.5-flash: 무료 티어 지원 확인 (Google AI Studio 문서 기준)
+```
+
+#### 5단계: 응답 파싱 구조 오류 진단 `1c7a190`
+
+```
+커밋: debug: AI 오류 원인 재진단
+       (이전 debug 커밋과 구분: 이번은 HTTP 성공 후 파싱 단계 오류)
+
+문제 상황:
+  - Gemini API HTTP 200 반환 → 이전 단계 문제 해결 확인
+  - 그러나 AiInsightPanel에 오류 표시 지속
+  - 증상: API 응답 본문은 도착하지만 C# 역직렬화(JsonSerializer) 실패
+
+진단 내용:
+  - Gemini v1beta 응답 구조: candidates[0].content.parts[0].text
+  - 코드의 역직렬화 대상 클래스가 candidates 배열 대신 단일 객체로 정의됨
+  - JSON 경로 불일치로 NullReferenceException 발생
+
+가설 수립:
+  - API 버전(v1beta vs v1)에 따라 응답 스키마가 다를 수 있음
+  - generationConfig 파라미터 중 일부가 버전별로 미지원일 가능성
+```
+
+#### 6단계: API 버전 v1beta → v1 전환 시도 `cf3f5f0`
+
+```
+커밋: fix: Gemini API v1beta → v1, 모델명 gemini-1.5-flash-latest 로 변경
+
+조치:
+  - API 엔드포인트: /v1beta/models → /v1/models 변경
+  - 모델명: gemini-1.5-flash → gemini-1.5-flash-latest 변경
+  - 목적: GA(정식 출시) 버전 v1의 안정적 스키마 사용
+
+결과:
+  - v1에서 responseMimeType 필드 미지원 오류 발생 (다음 커밋으로 연결)
+```
+
+#### 7단계: v1 비호환 필드 제거 `9f5c645`
+
+```
+커밋: fix: Gemini v1 API 비호환 generationConfig.responseMimeType 필드 제거
+
+문제 상황:
+  - v1 API 응답: {"error": {"code": 400, "message": "Unknown field: responseMimeType"}}
+  - generationConfig.responseMimeType = "application/json" 필드가 v1에서 미지원
+
+조치:
+  - responseMimeType 필드 제거
+  - JSON 응답 강제 없이 텍스트 응답 후 파싱 방식으로 변경
+```
+
+#### 8단계: v1beta 복귀 결정 `116718e`
+
+```
+커밋: fix: Gemini API v1beta + gemini-1.5-flash 조합으로 재변경
+
+문제 상황:
+  - v1에서 responseMimeType 제거 후에도 응답 구조 불안정
+  - v1 gemini-1.5-flash-latest 모델: 간헐적 응답 지연 및 형식 불일치
+
+결정:
+  - v1beta로 복귀: v1beta는 더 많은 모델과 파라미터 지원
+  - 모델명: gemini-1.5-flash (latest 접미사 제거 — 명시적 버전 고정)
+  - responseMimeType 유지 제거 (v1beta에서도 불필요함 확인)
+```
+
+#### 9단계: 모델명 불일치 최종 진단 `8be6235`
+
+```
+커밋: debug: AI 오류 원인 재진단
+       (이전 debug 커밋과 구분: 이번은 모델 존재 여부 자체가 문제)
+
+문제 상황:
+  - 간헐적 404 오류: {"error": {"code": 404, "status": "NOT_FOUND"}}
+  - 동일 코드로 로컬 환경 성공 / Render 배포 환경 실패
+
+진단 내용:
+  - Gemini API가 배포 지역(Region)에 따라 사용 가능한 모델 목록이 다름
+  - 하드코딩된 gemini-1.5-flash가 특정 환경에서 NOT_FOUND 반환
+  - 이것이 v1/v1beta 전환 과정에서 지속적으로 문제가 반복된 근본 원인
+
+결론:
+  - 모델명 하드코딩 자체가 취약 설계 → 동적 탐색으로 해결해야 함
+```
+
+#### 10단계: 근본 해결 — ListModels API 동적 모델 탐색 `761c3c2`
+
+```
+커밋: fix: Gemini 모델명 하드코딩 제거 → ListModels API로 사용 가능 모델 동적 탐색
+
+구현:
+  AiInsightService.ResolveModelNameAsync()
+    1. GET /v1beta/models 호출 → 현재 환경에서 실제 사용 가능한 모델 목록 수신
+    2. "generateContent" 액션 지원 모델 필터링
+    3. gemini-1.5-flash 접두사 우선 선택 → 없으면 flash 계열 → 없으면 첫 번째 모델
+    4. 결과를 IMemoryCache에 1시간 캐시 (ListModels API 반복 호출 방지)
+
+효과:
+  - 모델명 변경에 코드 수정 없이 자동 대응
+  - 배포 환경별 사용 가능 모델 자동 선택
+  - Phase 3의 모든 문제 근본 해결
+```
+
+> **Phase 3 디버깅 요약:** 총 10개 커밋, 4개 고유 오류 유형(인증·파싱·버전비호환·모델불일치) 해결.
+> 근본 원인은 '모델명 하드코딩'이었으며, ListModels API 동적 탐색으로 구조적 해결.
+> 상세 의사결정 근거: [`docs/decision-log.md` ADR-003, ADR-004](decision-log.md)
+
+---
+
+### AI 기능 안정화 — style 커밋 UX 근거
+
+| 커밋 | 해시 | 변경 내용 | UX/비즈니스 근거 |
+|------|------|----------|----------------|
+| style: 약품 유형 표기 Rx → ETC 전면 변경 | `7056ae4` | 차트 범례·KPI 카드·CSV 전체에서 "Rx" → "ETC" 일괄 교체 | **국내 규정 용어 준수:** 국내 건강보험심사평가원(HIRA)은 "ETC(전문의약품)"로 공식 표기. "Rx"는 국제 기호로 국내 약사 사용자에게 이질감 발생. 약국 경영 도구로서 도메인 정확성 확보 |
+| style: 파이 차트 범례 위치 하단으로 변경 (그래프 겹침 해소) | `df42966` | ECharts 범례 `orient: 'horizontal', bottom: 0` 설정 | 기본 우측 배치 시 650px 이하 뷰포트에서 범례가 파이 그래프와 40% 이상 겹침 확인. 하단 수평 배치로 ECharts `h-64` 컨테이너 내 그래프-범례 공간 분리 |
+| docs: sprint1, sprint3 완료 상태 반영 및 ROADMAP.md Phase 3 완료 업데이트 | `31196e3` | Phase 3: 문서화 | — |
 
 ---
 

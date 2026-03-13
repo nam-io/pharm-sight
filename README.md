@@ -492,6 +492,57 @@ app.MapControllers();
 
 ---
 
+## 개발 이력 및 기술 의사결정 추적
+
+### 커밋 히스토리 (55개, 5 Phase)
+
+PharmSight AI는 Phase 0~4까지 총 55개 커밋으로 개발되었으며,
+모든 커밋은 ROADMAP.md의 Phase 항목과 1:1 연결됩니다.
+
+| Phase | 커밋 수 | 핵심 성과 |
+|-------|--------|----------|
+| Phase 0 — 기반 구축 | 6개 | .NET 9 API, Vue 3, PostgreSQL 스키마 초기화 |
+| Phase 1 — 프론트엔드 UI | 7개 | 6종 ECharts 차트, Mock 데이터 Composable, Vercel 배포 |
+| Phase 2 — 백엔드 API | 13개 | Dapper 7개 집계 쿼리, Render+Supabase 배포, 3가지 연결 버그 수정 |
+| Phase 3 — AI 기능 | 13개 | Gemini API 통합, 10단계 디버깅 → ListModels 동적 탐색으로 근본 해결 |
+| Phase 4 — 테스트/CI | 16개 | xUnit 13개, GitHub Actions CI, 재평가 대응 문서 보강 |
+
+> **Phase 3 디버깅 상세 (13개 커밋의 맥락):**
+> API 전환(Anthropic→Gemini) 과정에서 인증 오류→잔존 코드→유료모델→파싱 오류→버전 비호환→모델 불일치까지
+> 6가지 오류 유형을 순서대로 해결했습니다. 단순 반복이 아닌 각 단계에서 새로운 가설을 수립하고 검증한 디버깅 과정입니다.
+> 전체 단계별 기록: [`docs/CHANGELOG.md` Phase 3 디버깅 타임라인](docs/CHANGELOG.md)
+
+### 핵심 기술 의사결정 8개 (ADR)
+
+개발 과정에서 내린 주요 기술 선택을 Architecture Decision Records 형식으로 기록했습니다:
+
+| ADR | 결정 | 결과 |
+|-----|------|------|
+| ADR-001 | Dapper (ORM 미사용) | CTE 3중 쿼리 1회 왕복, PostgreSQL 네이티브 함수 자유 활용 |
+| ADR-002 | SQLite → Supabase PostgreSQL | Render 에페머럴 파일시스템 문제 해결, 클라우드 영속성 확보 |
+| ADR-003 | Anthropic → Google Gemini | 무료 할당량 확보, ListModels API 활용 가능 |
+| ADR-004 | ListModels 동적 모델 탐색 | 배포 환경별 모델 자동 선택, 하드코딩 취약점 제거 |
+| ADR-005 | IMemoryCache 30분 캐시 | Gemini API 호출 최소화, 2초→10ms 응답 개선 |
+| ADR-006 | Vue 3 Composition API | Composable 3개 분리, Vite HMR 개발 생산성 |
+| ADR-007 | 3계층 아키텍처 + DI | IDashboardRepository Mock → 13개 단위 테스트 가능 |
+| ADR-008 | Promise.all 병렬 호출 | 7개 API 순차(~1400ms) → 병렬(~250ms) 5배 개선 |
+
+> 각 ADR의 컨텍스트·대안·근거·결과 전문: [`docs/decision-log.md`](docs/decision-log.md)
+
+### 스프린트 문서 연결
+
+| 문서 | 내용 |
+|------|------|
+| [`docs/sprint/sprint0.md`](docs/sprint/sprint0.md) | Phase 0 계획 및 기반 구축 |
+| [`docs/sprint/sprint1.md`](docs/sprint/sprint1.md) | Phase 1 프론트엔드 UI 개발 계획 |
+| [`docs/sprint/sprint2.md`](docs/sprint/sprint2.md) | Phase 2 백엔드 API + 클라우드 배포 |
+| [`docs/sprint/sprint3.md`](docs/sprint/sprint3.md) | Phase 3 AI 기능 + Gemini 디버깅 |
+| [`docs/sprint/sprint4.md`](docs/sprint/sprint4.md) | Phase 4 테스트·CI/CD (xUnit 13개 + ci.yml 전문 포함) |
+| [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | 전체 커밋 이력 — Phase별 분류, debug 커밋 맥락 포함 |
+| [`docs/decision-log.md`](docs/decision-log.md) | ADR 8개 — 기술 의사결정 배경·대안·근거 전문 |
+
+---
+
 ## UX 상세 설명
 
 ### 실제 배포 URL에서 직접 확인 가능
