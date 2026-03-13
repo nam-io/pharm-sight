@@ -4,7 +4,7 @@
 - **목표:** 약국의 처방·매출·지출 데이터를 한 화면에서 시각화하는 경영 통합 대시보드 구축
 - **전체 예상 기간:** 약 6시간 (초단기 해커톤 1인 집중 스프린트)
 - **배포 전략:** 프론트엔드(Vue 3) Vercel + 백엔드(.NET) Render + DB Supabase(PostgreSQL)
-- **현재 진행 단계:** Phase 2 완료 — 실데이터 연동 및 배포 안정화 진행 중
+- **현재 진행 단계:** Phase 3 완료 — AI 경영 분석 기능 구현 및 전 Phase 배포 완료
 
 ---
 
@@ -83,14 +83,14 @@ Supabase(PostgreSQL) 실데이터 기반 Dapper API 구현, Render 배포, 프�
 **상태:** ✅ 완료
 
 #### 목표
-Claude AI API를 연동하여 약국 경영 데이터를 자동 분석하고, 대시보드 상단에 친절한 AI 인사이트를 표시한다.
+Google Gemini API를 연동하여 약국 경영 데이터를 자동 분석하고, 대시보드 상단에 친절한 AI 인사이트를 표시한다.
 
 #### 작업 목록
-- [ ] **[백엔드 AI 서비스]**: `AiInsightService` — Claude API 호출, 경영 데이터 기반 요약 생성 (30분 캐시)
-- [ ] **[백엔드 컨트롤러]**: `GET /api/ai/insight` 엔드포인트
-- [ ] **[프론트엔드 패널]**: `AiInsightPanel.vue` — 요약·하이라이트·경고·추천 표시
-- [ ] **[앱 리브랜딩]**: "약국 경영 통합 AI 대시보드" 명칭 반영
-- [ ] **[Render 환경변수]**: `Anthropic__ApiKey` 등록
+- [x] **[백엔드 AI 서비스]**: `AiInsightService` — Google Gemini API 호출, 동적 모델 선택, 경영 데이터 기반 요약 생성 (30분 캐시)
+- [x] **[백엔드 컨트롤러]**: `GET /api/ai/insight` 엔드포인트
+- [x] **[프론트엔드 패널]**: `AiInsightPanel.vue` — 요약·하이라이트·경고·추천 표시, 로딩 스켈레톤
+- [x] **[앱 리브랜딩]**: "약국 경영 통합 AI 대시보드" 명칭 반영
+- [x] **[Render 환경변수]**: `Gemini__ApiKey` 등록
 
 ---
 

@@ -15,7 +15,7 @@
 
 ## 목표 (Goal)
 
-Claude AI API를 백엔드에 연동하여 실시간 약국 경영 데이터를 분석하고,
+Google Gemini API를 백엔드에 연동하여 실시간 약국 경영 데이터를 분석하고,
 대시보드 상단에 AI가 생성한 경영 인사이트를 표시한다.
 앱 명칭을 **"약국 경영 통합 AI 대시보드"** 로 리브랜딩한다.
 
@@ -46,7 +46,7 @@ Claude AI API를 백엔드에 연동하여 실시간 약국 경영 데이터를 
 - `IDashboardRepository`에서 KPI·월별 매출·약품 유형·병원 데이터 수집
 - Anthropic Claude API(`claude-haiku-4-5-20251001`) 호출로 JSON 형식 인사이트 생성
 - `IMemoryCache` 30분 캐시 — API 비용 절감 및 응답 속도 개선
-- `IHttpClientFactory`로 Named HttpClient 등록 (`"Anthropic"`)
+- `IHttpClientFactory`로 Named HttpClient 등록 (`"Gemini"`)
 - API 키 미설정 시 안내 메시지 반환 (Graceful Degradation)
 
 **API 엔드포인트:** `GET /api/ai/insight`
@@ -87,9 +87,9 @@ Claude AI API를 백엔드에 연동하여 실시간 약국 경영 데이터를 
 
 ### T3-3: 인프라 설정
 
-- `backend/Program.cs`: `IMemoryCache`, Named HttpClient(`"Anthropic"`) DI 등록
-- `backend/appsettings.json`: `"Anthropic": { "ApiKey": "" }` 섹션 추가
-- Render 환경변수: `Anthropic__ApiKey` 등록 필요 (수동)
+- `backend/Program.cs`: `IMemoryCache`, Named HttpClient(`"Gemini"`) DI 등록
+- `backend/appsettings.json`: `"Gemini": { "ApiKey": "" }` 섹션 추가
+- Render 환경변수: `Gemini__ApiKey` 등록 필요 (수동)
 
 ---
 
@@ -106,5 +106,5 @@ Claude AI API를 백엔드에 연동하여 실시간 약국 경영 데이터를 
 
 ## 기술 부채 및 주의사항
 
-- Anthropic API 키는 반드시 Render 환경변수로만 관리 (코드/Git 커밋 금지)
+- Gemini API 키는 반드시 Render 환경변수로만 관리 (코드/Git 커밋 금지)
 - 캐시 30분 → 데이터 갱신 원할 시 수동 서버 재시작 필요 (추후 캐시 무효화 엔드포인트 고려)

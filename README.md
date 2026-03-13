@@ -1,6 +1,6 @@
-# PharmSight — 약국 경영 통합 대시보드
+# PharmSight AI — 약국 경영 통합 AI 대시보드
 
-약국의 처방·매출·지출 데이터를 한 화면에서 시각화하여 경영 의사결정을 지원하는 통합 대시보드입니다.
+약국의 처방·매출·지출 데이터를 한 화면에서 시각화하고, Google Gemini AI가 경영 인사이트를 자동 분석하여 제공하는 통합 AI 대시보드입니다.
 
 ---
 
@@ -12,16 +12,24 @@
 - **PharmSight의 차별점:** 1. **통합 시각화:** 파편화된 조제/매출/지출 데이터를 단일 대시보드로 통합.
   2. **직관적인 UX:** 경영자가 한눈에 파악할 수 있는 ECharts 기반의 화려하고 반응형인 모던 UI 제공.
   3. **인사이트 중심:** 단순 데이터 나열이 아닌, '병원별 의존도', '연령대별 타겟' 등 즉각적인 경영 액션이 가능한 지표 도출.
+  4. **AI 경영 분석:** Google Gemini AI가 실시간 경영 데이터를 분석하여 요약·하이라이트·주의사항·추천을 자동 생성.
 
 ## 🌐 배포 URL (Deployment)
-- **프론트엔드 (데모 시연용):** [https://pharm-sight-frontend.vercel.app](https://pharm-sight-frontend.vercel.app)
-- *비고: 해커톤 데모 시연을 위해 프론트엔드는 Vercel에 배포되며, 백엔드 로컬 DB(SQLite) 제약으로 인해 데모 환경에서는 Mock 데이터가 동작하도록 구성됩니다.*
+- **프론트엔드:** [https://pharm-sight-frontend.vercel.app](https://pharm-sight-frontend.vercel.app) (Vercel)
+- **백엔드 API:** [https://pharm-sight.onrender.com](https://pharm-sight.onrender.com) (Render)
+- **데이터베이스:** Supabase PostgreSQL (실데이터 연동)
 
 ## 주요 기능
 
+### AI 경영 분석 (신규)
+- Google Gemini AI가 이번 달 경영 현황을 2~3문장으로 친절하게 요약
+- 긍정적 하이라이트 및 주의 사항 배지 자동 생성
+- 데이터 기반 실용적 경영 추천 조언 제공
+- 응답 결과 30분 캐시로 API 비용 절감
+
 ### 처방 트렌드 분석
 - 월별 총 매출 및 조제 건수 추이 (라인 차트)
-- 조제약(Rx) vs 일반의약품(OTC) 매출 비중 시각화 (파이 차트)
+- 전문의약품(ETC) vs 일반의약품(OTC) 매출 비중 시각화 (파이 차트)
 
 ### 고객 및 처방 기관 분석
 - 방문 환자 연령대 분포 (도넛 차트)
@@ -38,8 +46,10 @@
 | 레이어 | 기술 |
 |--------|------|
 | **Frontend** | Vue 3 (Composition API, `<script setup>`), TypeScript, Vite, Tailwind CSS, Apache ECharts |
-| **Backend** | C# .NET Core 8.0+ Web API |
-| **Database** | SQLite (`Microsoft.Data.Sqlite`), Dapper |
+| **Backend** | C# .NET 9.0 Web API |
+| **Database** | PostgreSQL (Supabase), Npgsql, Dapper |
+| **AI** | Google Gemini API (동적 모델 선택, `IMemoryCache` 30분 캐시) |
+| **Infra** | Vercel (Frontend) · Render (Backend) · Supabase (DB) |
 | **Architecture** | Controller → Service → Repository 계층 분리 (SRP 준수) |
 
 > ⚠️ Entity Framework는 사용하지 않습니다. 모든 DB 접근은 Dapper를 통한 순수 SQL로 처리합니다.
@@ -56,7 +66,7 @@
 ```
 Patients        (Id, DateOfBirth)
 Hospitals       (Id, Name)
-Drugs           (Id, Name, Type[Rx/OTC], IsCovered)
+Drugs           (Id, Name, Type[ETC/OTC], IsCovered)
 Prescriptions   (Id, PatientId → Patients, HospitalId → Hospitals, DispenseDate)
 Orders          (Id, WholesaleName, DrugId → Drugs, Amount, OrderDate)
 Sales           (Id, Amount, SaleDate, PrescriptionId → Prescriptions [nullable])
@@ -76,23 +86,30 @@ Sales           (Id, Amount, SaleDate, PrescriptionId → Prescriptions [nullabl
 pharm-sight/
 ├── frontend/               # Vue 3 + Vite 프론트엔드
 │   ├── src/
-│   │   ├── components/     # 재사용 UI 컴포넌트
-│   │   ├── composables/    # Vue Composables (useDashboardData.ts 등)
+│   │   ├── components/
+│   │   │   ├── AiInsightPanel.vue   # AI 경영 분석 패널
+│   │   │   └── charts/             # ECharts 차트 컴포넌트
+│   │   ├── composables/
+│   │   │   ├── useDashboardData.ts  # 대시보드 데이터 fetch
+│   │   │   ├── useAiInsight.ts      # AI 인사이트 fetch
+│   │   │   └── useKeepAlive.ts      # Render 슬립 방지 핑
 │   │   ├── views/          # 페이지 컴포넌트
 │   │   └── types/          # TypeScript 타입 정의
+│   ├── .env.production     # Vercel 빌드용 API URL 설정
 │   ├── package.json
 │   └── vite.config.ts
-├── backend/                # .NET Core 8.0 Web API 백엔드
+├── backend/                # .NET 9.0 Web API 백엔드
 │   ├── Controllers/        # HTTP 요청 처리
-│   ├── Services/           # 비즈니스 로직
-│   ├── Repositories/       # DB 접근 (Dapper)
+│   ├── Services/
+│   │   ├── AiInsightService.cs   # Gemini AI 인사이트 생성
+│   │   └── Interfaces/
+│   ├── Repositories/       # DB 접근 (Dapper + Npgsql)
 │   ├── Models/             # DTO 및 도메인 모델
 │   └── PharmSight.Tests/   # xUnit 단위 테스트
 ├── database/
-│   ├── pharm-sight.db      # SQLite 데이터베이스
-│   └── schema.sql          # DDL 스크립트
+│   └── schema.sql          # PostgreSQL DDL 스크립트
 ├── docs/
-│   ├── sprint/             # 스프린트 계획/완료 문서
+│   ├── sprint/             # 스프린트 계획/완료 문서 (sprint1~3)
 │   └── deploy-history/     # 배포 이력 아카이브
 ├── .github/workflows/      # CI/CD 파이프라인
 ├── CLAUDE.md               # AI 협업 가이드
@@ -104,7 +121,7 @@ pharm-sight/
 ## 시작하기
 
 ### 사전 요구사항
-- [.NET SDK 8.0+](https://dotnet.microsoft.com/download)
+- [.NET SDK 9.0+](https://dotnet.microsoft.com/download)
 - [Node.js 20+](https://nodejs.org/)
 
 ### 백엔드 실행
@@ -125,18 +142,17 @@ npm run dev
 # → http://localhost:5173 에서 실행
 ```
 
-### 데이터베이스 초기화
-
-```bash
-# SQLite DB 스키마 생성 (최초 1회)
-sqlite3 database/pharm-sight.db < database/schema.sql
-```
-
 ### 환경 변수 설정
 
-```bash
-cp .env.example .env
-# .env 파일을 열어 필요한 값 수정
+백엔드 `appsettings.json` 또는 환경변수:
+```
+ConnectionStrings__DefaultConnection=<Supabase PostgreSQL 연결 문자열>
+Gemini__ApiKey=<Google Gemini API 키>
+```
+
+프론트엔드 `.env.production`:
+```
+VITE_API_BASE_URL=https://pharm-sight.onrender.com
 ```
 
 ---
