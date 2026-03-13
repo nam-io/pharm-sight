@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using Dapper;
 using Npgsql;
 using PharmSight.Api.Models;
@@ -43,6 +45,23 @@ public class DashboardRepository : IDashboardRepository
         return builder.ConnectionString;
     }
 
+    /// <summary>
+    /// Render 무료 플랜은 IPv6 아웃바운드를 지원하지 않으므로,
+    /// 호스트명을 IPv4 주소로 먼저 해석한 뒤 NpgsqlConnection을 생성합니다.
+    /// </summary>
+    private static async Task<NpgsqlConnection> CreateConnectionAsync(string connectionString)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+        if (!string.IsNullOrEmpty(builder.Host) && !IPAddress.TryParse(builder.Host, out _))
+        {
+            // IPv4 전용으로 DNS 해석 (AAAA 레코드 무시)
+            var addresses = await Dns.GetHostAddressesAsync(builder.Host, AddressFamily.InterNetwork);
+            if (addresses.Length > 0)
+                builder.Host = addresses[0].ToString();
+        }
+        return new NpgsqlConnection(builder.ConnectionString);
+    }
+
     /// <summary>최근 12개월 월별 매출 및 조제 건수 집계</summary>
     public async Task<IEnumerable<MonthlySales>> GetMonthlySalesAsync()
     {
@@ -57,7 +76,7 @@ public class DashboardRepository : IDashboardRepository
             GROUP BY TO_CHAR(s."SaleDate", 'YYYY-MM')
             ORDER BY "Month";
             """;
-        await using var conn = new NpgsqlConnection(_connectionString);
+        await using var conn = await CreateConnectionAsync(_connectionString);
         return await conn.QueryAsync<MonthlySales>(sql);
     }
 
@@ -80,7 +99,7 @@ public class DashboardRepository : IDashboardRepository
             GROUP BY (s."PrescriptionId" IS NOT NULL)
             ORDER BY "Type" DESC;
             """;
-        await using var conn = new NpgsqlConnection(_connectionString);
+        await using var conn = await CreateConnectionAsync(_connectionString);
         return await conn.QueryAsync<DrugTypeSales>(simpleSql);
     }
 
@@ -109,7 +128,7 @@ public class DashboardRepository : IDashboardRepository
             GROUP BY "AgeGroup"
             ORDER BY MIN(age);
             """;
-        await using var conn = new NpgsqlConnection(_connectionString);
+        await using var conn = await CreateConnectionAsync(_connectionString);
         return await conn.QueryAsync<PatientAgeGroup>(sql);
     }
 
@@ -126,7 +145,7 @@ public class DashboardRepository : IDashboardRepository
             ORDER BY "Count" DESC
             LIMIT 6;
             """;
-        await using var conn = new NpgsqlConnection(_connectionString);
+        await using var conn = await CreateConnectionAsync(_connectionString);
         return await conn.QueryAsync<HospitalPrescription>(sql);
     }
 
@@ -142,7 +161,7 @@ public class DashboardRepository : IDashboardRepository
             ORDER BY "Amount" DESC
             LIMIT 5;
             """;
-        await using var conn = new NpgsqlConnection(_connectionString);
+        await using var conn = await CreateConnectionAsync(_connectionString);
         return await conn.QueryAsync<WholesaleExpense>(sql);
     }
 
@@ -161,7 +180,7 @@ public class DashboardRepository : IDashboardRepository
             GROUP BY d."IsCovered"
             ORDER BY d."IsCovered" DESC;
             """;
-        await using var conn = new NpgsqlConnection(_connectionString);
+        await using var conn = await CreateConnectionAsync(_connectionString);
         return await conn.QueryAsync<DrugCoverage>(sql);
     }
 
@@ -204,7 +223,7 @@ public class DashboardRepository : IDashboardRepository
                 END                AS "PrescriptionChangeRate"
             FROM current_month c, prev_month p, current_orders co;
             """;
-        await using var conn = new NpgsqlConnection(_connectionString);
+        await using var conn = await CreateConnectionAsync(_connectionString);
         return await conn.QuerySingleAsync<KpiSummary>(sql);
     }
 }
