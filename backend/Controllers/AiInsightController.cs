@@ -8,7 +8,7 @@ namespace PharmSight.Api.Controllers;
 /// 실시간 대시보드 데이터를 분석하여 AI 경영 요약을 반환합니다.
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/ai")]
 public class AiInsightController : ControllerBase
 {
     private readonly IAiInsightService _aiInsightService;
