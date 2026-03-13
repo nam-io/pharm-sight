@@ -104,6 +104,166 @@
 - **백엔드 API:** [https://pharm-sight.onrender.com](https://pharm-sight.onrender.com) (Render)
 - **데이터베이스:** Supabase PostgreSQL (실데이터 연동)
 
+---
+
+## 🏗️ 아키텍처 및 핵심 구현 코드
+
+### Controller → Service → Repository 계층 분리
+
+```
+HTTP 요청 → GlobalExceptionMiddleware → DashboardController
+                                              │ IDashboardService (인터페이스 DI)
+                                              ▼
+                                        DashboardService
+                                              │ IDashboardRepository (인터페이스 DI)
+                                              ▼
+                                        DashboardRepository
+                                              │ Dapper + NpgsqlConnection
+                                              ▼
+                                        Supabase PostgreSQL
+```
+
+### 전역 예외 처리 미들웨어 전체 코드
+
+**파일:** `backend/Middleware/GlobalExceptionMiddleware.cs`
+
+```csharp
+/// <summary>
+/// 전역 예외 처리 미들웨어.
+/// 처리되지 않은 모든 예외를 캐치하여 일관된 JSON 오류 응답을 반환합니다.
+/// </summary>
+public class GlobalExceptionMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly ILogger<GlobalExceptionMiddleware> _logger;
+
+    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
+    {
+        _next = next;
+        _logger = logger;
+    }
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try
+        {
+            await _next(context);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "처리되지 않은 예외 발생: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+    }
+
+    private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    {
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = exception switch
+        {
+            ArgumentNullException     => (int)HttpStatusCode.BadRequest,        // 400
+            InvalidOperationException => (int)HttpStatusCode.BadRequest,        // 400
+            _                         => (int)HttpStatusCode.InternalServerError // 500
+        };
+        var response = new { error = exception.Message, statusCode = context.Response.StatusCode };
+        await context.Response.WriteAsync(
+            JsonSerializer.Serialize(response, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            }));
+    }
+}
+```
+
+오류 응답 (모든 예외 일관 적용):
+```json
+{ "error": "처리 중 오류가 발생했습니다.", "statusCode": 500 }
+{ "error": "잘못된 요청입니다.", "statusCode": 400 }
+```
+
+### DI 등록 및 미들웨어 파이프라인
+
+**파일:** `backend/Program.cs`
+
+```csharp
+// ── 인터페이스 기반 DI 등록 ──────────────────────────────────────────────
+builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
+builder.Services.AddScoped<IDashboardService,    DashboardService>();
+builder.Services.AddScoped<IAiInsightService,    AiInsightService>();
+builder.Services.AddMemoryCache();                    // AI 인사이트 30분 캐시
+builder.Services.AddHttpClient("Gemini", c =>         // Named HttpClient (타임아웃 30초)
+    c.Timeout = TimeSpan.FromSeconds(30));
+
+// ── 미들웨어 파이프라인 (GlobalExceptionMiddleware 최선두) ──────────────
+app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseCors("ViteFrontend");
+app.UseAuthorization();
+app.MapControllers();
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
+```
+
+### Dapper 고급 SQL — KPI 집계 쿼리 (CTE 3중)
+
+**파일:** `backend/Repositories/DashboardRepository.cs`
+
+```csharp
+/// <summary>이번 달 및 전월 대비 KPI 요약 집계 — CTE 3중, 1회 DB 왕복</summary>
+public async Task<KpiSummary> GetKpiSummaryAsync()
+{
+    const string sql = """
+        WITH current_month AS (
+            SELECT COALESCE(SUM(s."Amount"), 0)   AS sales,
+                   COUNT(DISTINCT pr."Id")         AS prescriptions,
+                   COUNT(DISTINCT pr."PatientId")  AS patients
+            FROM "Sales" s
+            LEFT JOIN "Prescriptions" pr ON s."PrescriptionId" = pr."Id"
+            WHERE DATE_TRUNC('month', s."SaleDate"::date) = DATE_TRUNC('month', CURRENT_DATE)
+        ),
+        prev_month AS (
+            SELECT COALESCE(SUM(s."Amount"), 0) AS sales,
+                   COUNT(DISTINCT pr."Id")       AS prescriptions
+            FROM "Sales" s
+            LEFT JOIN "Prescriptions" pr ON s."PrescriptionId" = pr."Id"
+            WHERE DATE_TRUNC('month', s."SaleDate"::date)
+                  = DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')
+        ),
+        current_orders AS (
+            SELECT COALESCE(SUM(o."Amount"), 0) AS amount
+            FROM "Orders" o
+            WHERE DATE_TRUNC('month', o."OrderDate"::date) = DATE_TRUNC('month', CURRENT_DATE)
+        )
+        SELECT c.sales AS "CurrentMonthSales", c.prescriptions AS "CurrentMonthPrescriptions",
+               c.patients AS "CurrentMonthPatients", co.amount AS "CurrentMonthOrderAmount",
+               CASE WHEN p.sales = 0 THEN 0
+                    ELSE ROUND(((c.sales - p.sales) / p.sales * 100)::numeric, 1)
+               END AS "SalesChangeRate",
+               CASE WHEN p.prescriptions = 0 THEN 0
+                    ELSE ROUND(((c.prescriptions - p.prescriptions)::numeric
+                                / p.prescriptions * 100)::numeric, 1)
+               END AS "PrescriptionChangeRate"
+        FROM current_month c, prev_month p, current_orders co;
+        """;
+    await using var conn = new NpgsqlConnection(_connectionString);
+    return await conn.QuerySingleAsync<KpiSummary>(sql);
+    // EF Core 대비 이점: CTE 3개를 단 1회 DB 왕복으로 처리
+    // EF Core LINQ로 표현 시 최소 3회 쿼리 또는 비최적 SQL 생성 가능
+}
+```
+
+### Dapper vs EF Core — 실질적 성능 이점
+
+| 쿼리 특성 | EF Core 문제 | Dapper 결과 |
+|-----------|-------------|-------------|
+| CTE 3중 집계 (KPI) | LINQ 표현 불가 → Raw SQL 강제 사용 필요, 최적화 불명확 | 직접 제어, 1회 왕복으로 이번 달/전월/발주 동시 계산 |
+| `DATE_TRUNC` / `AGE()` | EF Core PostgreSQL 함수 번역 불완전 → 클라이언트 사이드 처리 위험 | 순수 SQL → PG 네이티브 함수 그대로 실행 |
+| `COUNT(DISTINCT pr."Id")` | N+1 문제 발생 가능 (Include → 메모리 집계) | DB 서버에서 직접 집계, 네트워크 전송량 최소 |
+| Change Tracking | 읽기 전용 집계에도 엔티티 추적 오버헤드 발생 | `await using var conn` — 연결 즉시 해제, 오버헤드 없음 |
+| DTO 직접 매핑 | 도메인 → DTO 변환 코드 추가 필요 | `QueryAsync<KpiSummary>` 한 줄 — DTO 직접 매핑 |
+
+> 전체 계층별 코드: [`docs/architecture.md`](docs/architecture.md)
+
+---
+
 ## 주요 기능 (구현 완료)
 
 > **라이브 데모:** [https://pharm-sight-frontend.vercel.app](https://pharm-sight-frontend.vercel.app) — 실제 UI를 직접 확인하세요.
