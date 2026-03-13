@@ -145,8 +145,7 @@ public class AiInsightService : IAiInsightService
             contents = new[]
             {
                 new { parts = new[] { new { text = prompt } } }
-            },
-            generationConfig = new { responseMimeType = "application/json" }
+            }
         };
 
         var response = await client.PostAsJsonAsync(url, requestBody);
