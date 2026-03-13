@@ -14,8 +14,8 @@
   3. **인사이트 중심:** 단순 데이터 나열이 아닌, '병원별 의존도', '연령대별 타겟' 등 즉각적인 경영 액션이 가능한 지표 도출.
 
 ## 🌐 배포 URL (Deployment)
-- **프론트엔드 (데모 시연용):** [배포 URL 삽입 예정 - 예: https://pharmsight-demo.vercel.app]
-- *비고: 해커톤 데모 시연을 위해 프론트엔드는 Vercel(또는 Netlify)에 배포되며, 백엔드 로컬 DB(SQLite) 제약으로 인해 데모 환경에서는 Mock API가 동작하도록 구성됩니다.*
+- **프론트엔드 (데모 시연용):** [https://pharm-sight-frontend.vercel.app](https://pharm-sight-frontend.vercel.app)
+- *비고: 해커톤 데모 시연을 위해 프론트엔드는 Vercel에 배포되며, 백엔드 로컬 DB(SQLite) 제약으로 인해 데모 환경에서는 Mock 데이터가 동작하도록 구성됩니다.*
 
 ## 주요 기능
 
