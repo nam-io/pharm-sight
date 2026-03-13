@@ -138,7 +138,7 @@ public class AiInsightService : IAiInsightService
     private async Task<string> CallGeminiAsync(string prompt)
     {
         var client = _httpClientFactory.CreateClient("Gemini");
-        var url = $"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key={_apiKey}";
+        var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={_apiKey}";
 
         var requestBody = new
         {
