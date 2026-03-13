@@ -118,6 +118,36 @@
 | **Infra** | Vercel · Render · Supabase | 무료 티어 조합으로 해커톤 제약 내 풀스택 클라우드 배포 달성 |
 | **Architecture** | Controller → Service → Repository | SRP 준수, 인터페이스 기반 DI로 테스트 용이성 극대화 |
 
+### 기술 선택 심화 근거
+
+**Vue 3 Composition API — React 대신 선택한 이유**
+- `useDashboardData`, `useAiInsight`, `useKeepAlive` 등 기능별 Composable 분리 → 로직 재사용성 극대화
+- `<script setup>` 문법으로 보일러플레이트 최소화, TypeScript 타입 추론 자연스럽게 통합
+- Vite 6의 즉각 HMR(Hot Module Replacement)로 개발 생산성 향상 (해커톤 시간 제약 대응)
+
+**Apache ECharts — Chart.js 대신 선택한 이유**
+- 바 차트 위에 라인 오버레이(매출 + 조제건수 동시 표시) 등 복합 차트 네이티브 지원
+- 데이터 없을 시 `noData` 옵션, 툴팁 포매터 등 약국 경영 데이터에 맞는 커스터마이징 용이
+- 도넛·파이·바·라인 6종 차트를 통일된 API로 관리
+
+**C# .NET 9.0 — Node.js/Python 대신 선택한 이유**
+- 강타입 시스템: DTO 클래스(`MonthlySales`, `KpiSummary` 등)로 API 계약을 컴파일 타임에 검증
+- `async/await` 기반 비동기 처리로 DB 쿼리 7개 병렬 실행 (`Promise.all` 동등)
+- xUnit + Moq 테스트 생태계 성숙 → `IDashboardRepository` Mock 인터페이스 테스트 자연스럽게 구성
+
+**Supabase PostgreSQL — SQLite 대신 선택한 이유 (마이그레이션 결정)**
+- Render 무료 플랜: 에페머럴(임시) 파일시스템 → 배포 시 SQLite 파일 초기화 발생
+- PostgreSQL 전용 함수(`DATE_TRUNC`, `AGE()`, `INTERVAL`)로 복잡한 날짜 집계 쿼리 구현
+- Supabase 무료 티어 + Render 무료 티어 조합으로 영속성 확보 (비용 0원)
+
+**Google Gemini API — OpenAI GPT 대신 선택한 이유**
+- 무료 할당량(Flash 모델): 해커톤 환경에서 API 비용 없이 AI 기능 구현 가능
+- `ListModels` 엔드포인트로 사용 가능한 모델을 런타임에 동적 탐색 → 모델명 변경에 자동 대응
+- `IMemoryCache` 30분 캐시로 반복 호출 방지 → API 할당량 절약
+
+**Dapper — EF Core 대신 선택한 이유**
+(상세 비교: [#Dapper-선택-근거](#dapper-선택-근거--ef-core-대비-실질적-이점) 섹션 참조)
+
 > ⚠️ Entity Framework는 사용하지 않습니다. 모든 DB 접근은 Dapper를 통한 순수 SQL로 처리합니다.
 >
 > **SQLite → PostgreSQL 마이그레이션 근거:** Render 무료 플랜은 에페머럴(임시) 파일시스템을 사용하여 배포 시 SQLite 파일이 초기화됩니다. 클라우드 배포 환경의 데이터 영속성을 위해 Supabase PostgreSQL(무료 티어)로 전환하였으며, Dapper + Npgsql 조합으로 ORM 없이 `DATE_TRUNC`, `CTE` 등 PostgreSQL 고급 집계 쿼리를 활용합니다.
@@ -428,9 +458,25 @@ push/PR
 
 ### 개발 진행 추적
 
-- 51개 Git 커밋, Conventional Commits 형식 (`feat:`, `fix:`, `docs:`, `style:`, `chore:`)
+- **55개 Git 커밋**, Conventional Commits 형식 (`feat:`, `fix:`, `docs:`, `style:`, `chore:`, `ci:`, `release:`, `merge:`, `revert:`)
 - 스프린트별 `docs/sprint/sprint0.md` ~ `sprint4.md` 문서에 작업 분해·완료 조건 기록
-- 브랜치: `sprint/sprint1`, `sprint/sprint2`, `sprint/sprint3_4`
+- 브랜치 전략: `sprint/sprint1`, `sprint/sprint2`, `sprint/sprint3_4` → `develop` → `master`
+
+**Phase별 커밋 분포:**
+
+| Phase | 주요 커밋 수 | 핵심 작업 |
+|-------|-------------|----------|
+| Phase 0 | 6개 | 프로젝트 기반, CI/CD, AI 에이전트 설정 |
+| Phase 1 | 7개 | Vue 3 프론트엔드, ECharts 6종 차트, Mock 데이터 |
+| Phase 2 | 11개 | .NET API 전체 구현, Supabase 배포, 연결 버그 3건 수정 |
+| Phase 3 | 13개 | Gemini AI 통합 (API 전환·디버깅 포함), 동적 모델 선택 |
+| Phase 4+ | 18개 | xUnit 테스트, CI/CD, 문서화, 재평가 대응 |
+
+**Phase 3 Gemini API 디버깅 이력 설명:**
+
+Phase 3에서 `debug:` 접두어가 붙은 커밋들은 Anthropic → Gemini 전환 시 발생한 API 호환성 문제를 추적한 과정입니다. API 버전(`v1` vs `v1beta`), 모델명(`2.0-flash` → `1.5-flash`), 요청 파라미터 호환성을 순차적으로 검증하였고, 최종적으로 `ListModels API`로 모델명을 런타임에 동적 탐색하는 근본적 해결책을 구현했습니다. 이 과정은 실제 개발에서 발생하는 외부 API 의존성 문제를 체계적으로 해결한 기록입니다.
+
+> 전체 커밋-ROADMAP 매핑 및 주요 기술 결정 이력: [`docs/CHANGELOG.md`](docs/CHANGELOG.md)
 
 ---
 
