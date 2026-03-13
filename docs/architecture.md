@@ -439,7 +439,23 @@ private async Task<AiInsight> GenerateInsightAsync()
 
 ---
 
-## 9. Frontend — Vue 3 Composable 패턴
+## 9. Frontend — Vue 3 Composable 패턴 + 설정 중앙 관리
+
+### 9-1. 설정 중앙 관리 (`config.ts`)
+
+```typescript
+// frontend/src/config.ts — 하드코딩 상수 제거, 한 곳에서 관리
+
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+export const USE_MOCK = !API_BASE_URL
+export const DASHBOARD_TIMEOUT_MS = 10_000   // Render 콜드스타트 고려
+export const MAX_NETWORK_RETRIES = 1         // NETWORK 에러만 1회 재시도
+export const RETRY_DELAY_MS = 500
+export const AI_TIMEOUT_MS = 15_000          // Gemini 응답 2~5초 고려
+export const KEEP_ALIVE_INTERVAL_MS = 10 * 60 * 1000  // Render 15분 슬립 방지
+```
+
+### 9-2. Composable 패턴
 
 ```typescript
 // frontend/src/composables/useDashboardData.ts
@@ -447,10 +463,9 @@ private async Task<AiInsight> GenerateInsightAsync()
 /**
  * @composable useDashboardData
  * @description 약국 경영 대시보드 데이터를 백엔드 API에서 조회하는 Vue Composable.
- * 환경변수 VITE_API_BASE_URL이 없으면 Mock 데이터로 폴백합니다.
+ * config.ts의 설정값을 사용하여 API 호출, 타임아웃, 재시도를 관리합니다.
  */
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
-const USE_MOCK = !API_BASE  // 빌드 타임 결정
+import { API_BASE_URL, USE_MOCK, DASHBOARD_TIMEOUT_MS, MAX_NETWORK_RETRIES, RETRY_DELAY_MS } from '@/config'
 
 export function useDashboardData() {
   const isLoading = ref(false)
@@ -459,34 +474,23 @@ export function useDashboardData() {
   const kpiRaw = ref<KpiSummary | null>(null)
 
   // KPI 카드 데이터 computed 변환 (원 → 만원, 변화율 부호 표시)
-  const kpiCards = computed<KpiCard[]>(() => {
-    if (!kpiRaw.value) return MOCK_KPI_CARDS
-    const k = kpiRaw.value
-    return [
-      { title: '이번 달 총 매출',
-        value: (k.currentMonthSales / 10000).toLocaleString('ko-KR', { maximumFractionDigits: 0 }),
-        unit: '만원', change: k.salesChangeRate, icon: '💰' },
-      // ... 3개 KPI 카드 동일 패턴
-    ]
-  })
+  const kpiCards = computed<KpiCard[]>(() => { /* ... */ })
 
   async function loadAll() {
-    if (USE_MOCK) return  // 환경변수 없으면 Mock 사용
+    if (USE_MOCK) return  // config.ts의 USE_MOCK: API URL 없으면 Mock 사용
 
     isLoading.value = true
     error.value = null
     try {
-      // 7개 API 병렬 호출 (Promise.all)
+      // 7개 API 병렬 호출 — config.ts의 DASHBOARD_TIMEOUT_MS(10초) 타임아웃 적용
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), DASHBOARD_TIMEOUT_MS)
       const [monthly, drugType, ages, hospitals, wholesale, coverage, kpi]
-        = await Promise.all([
-          fetchApi<DashboardData['monthlySales']>('/api/dashboard/monthly-sales'),
-          fetchApi<DashboardData['drugTypeSales']>('/api/dashboard/drug-type-sales'),
-          // ...
-        ])
-      dashboardData.value = { monthlySales: monthly, drugTypeSales: drugType, /* ... */ }
-      kpiRaw.value = kpi
+        = await Promise.all([ /* 7개 fetchApi 호출 */ ])
+      // ...
     } catch (e) {
-      error.value = e instanceof Error ? e.message : '데이터를 불러오는 중 오류가 발생했습니다.'
+      const classified = classifyError(e)  // NETWORK / API / PARSE 분류
+      // NETWORK 에러만 MAX_NETWORK_RETRIES(1)회 재시도, RETRY_DELAY_MS(500ms) 대기
       // API 실패 시 Mock 데이터 유지 → 서비스 중단 없음
     } finally {
       isLoading.value = false

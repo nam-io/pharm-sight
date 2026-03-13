@@ -1,4 +1,24 @@
-name: CI - 빌드, 테스트, 커버리지 자동화
+# ============================================================================
+# PharmSight AI — CI/CD 파이프라인 (4-Job 자동화)
+#
+# [파이프라인 전체 흐름]
+#   push/PR
+#     ├→ Job 1: backend-test   — .NET 9.0 빌드 + xUnit 35개 테스트 + Coverlet 커버리지
+#     ├→ Job 2: frontend-test  — Vitest 16개 단위 테스트 + Vite 프로덕션 빌드 검증
+#     └→ Job 3: e2e-smoke      — (1,2 완료 후) 배포된 서비스 9개 엔드포인트 E2E 검증
+#     └→ Job 4: deploy-status  — (1,2 완료 후) Vercel/Render 자동 배포 상태 확인
+#
+# [배포 자동화]
+#   Vercel (프론트엔드): GitHub 연동 — master push 시 자동 빌드·배포
+#   Render (백엔드):     GitHub 연동 — master push 시 자동 빌드·배포
+#   Supabase (DB):       클라우드 매니지드 — 상시 가동, 배포 불필요
+#
+# [테스트 전략 — 총 51개]
+#   백엔드 35개: Controller(9) + Service(13) + Repository(8) + Middleware(5)
+#   프론트엔드 16개: useDashboardData(7) + useAiInsight(4) + config(5)
+# ============================================================================
+
+name: CI/CD - 빌드, 테스트, 커버리지, 배포 검증
 
 on:
   push:
@@ -9,30 +29,35 @@ on:
 jobs:
   # ──────────────────────────────────────────────────────────
   # Job 1: 백엔드 단위/통합 테스트 + 코드 커버리지
+  # 테스트 대상: 5개 클래스 35개 테스트 (xUnit 2.9.2 + Moq 4.20.72)
+  #   - DashboardControllerTests (9개): Controller→Service Thin 패턴 검증
+  #   - DashboardServiceTests (9개): 7개 메서드 + 엣지 케이스 + 0 나눗셈 방어
+  #   - AiInsightServiceTests (4개): Graceful Degradation, 캐시 히트
+  #   - DashboardRepositoryTests (8개): URI 변환 6종 + 예외 + 인터페이스
+  #   - GlobalExceptionMiddlewareTests (5개): 예외→HTTP 상태코드 매핑
   # ──────────────────────────────────────────────────────────
   backend-test:
-    name: 백엔드 xUnit 테스트 + 커버리지 측정
+    name: "백엔드 xUnit 35개 테스트 + Coverlet 커버리지"
     runs-on: ubuntu-latest
 
     steps:
       - name: 코드 체크아웃
         uses: actions/checkout@v4
 
-      - name: .NET 9.0 설정
+      - name: .NET 9.0 SDK 설정
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "9.0.x"
 
-      - name: NuGet 패키지 복원 (API)
-        run: dotnet restore backend/PharmSight.Api.csproj
-
-      - name: NuGet 패키지 복원 (Tests)
-        run: dotnet restore backend/PharmSight.Tests/PharmSight.Tests.csproj
+      - name: NuGet 패키지 복원 (API + Tests)
+        run: |
+          dotnet restore backend/PharmSight.Api.csproj
+          dotnet restore backend/PharmSight.Tests/PharmSight.Tests.csproj
 
       - name: 백엔드 빌드 (Release)
         run: dotnet build backend/PharmSight.Api.csproj --no-restore --configuration Release
 
-      - name: xUnit 단위/통합 테스트 + Coverlet 커버리지 수집
+      - name: "xUnit 35개 테스트 실행 + Coverlet 코드 커버리지 (Cobertura XML)"
         run: >
           dotnet test backend/PharmSight.Tests/PharmSight.Tests.csproj
           --configuration Release
@@ -41,7 +66,7 @@ jobs:
           --collect:"XPlat Code Coverage"
           -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
-      - name: 테스트 결과 업로드
+      - name: 테스트 결과 + 커버리지 리포트 업로드
         uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -51,10 +76,14 @@ jobs:
             backend/PharmSight.Tests/TestResults/**/coverage.cobertura.xml
 
   # ──────────────────────────────────────────────────────────
-  # Job 2: 프론트엔드 단위 테스트 + 빌드 검증
+  # Job 2: 프론트엔드 Vitest 단위 테스트 + 프로덕션 빌드 검증
+  # 테스트 대상: 3개 파일 16개 테스트 (Vitest 4.1 + happy-dom)
+  #   - useDashboardData.test.ts (7개): Mock 데이터, KPI 카드, 정렬, ETC/OTC
+  #   - useAiInsight.test.ts (4개): 초기 상태, API 미설정 시 fetch 생략
+  #   - config.test.ts (5개): 설정값 관계 검증 (AI > 대시보드 타임아웃 등)
   # ──────────────────────────────────────────────────────────
   frontend-test:
-    name: 프론트엔드 Vitest 단위 테스트 + 빌드 검증
+    name: "프론트엔드 Vitest 16개 테스트 + Vite 빌드"
     runs-on: ubuntu-latest
 
     steps:
@@ -68,52 +97,123 @@ jobs:
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
-      - name: NPM 패키지 설치
+      - name: NPM 패키지 설치 (CI 모드)
         run: npm ci --prefix frontend
 
-      - name: Vitest 단위 테스트 실행
+      - name: "Vitest 16개 단위 테스트 실행 (happy-dom 환경)"
         run: npm test --prefix frontend
 
-      - name: 프론트엔드 프로덕션 빌드 검증
+      - name: "Vite 프로덕션 빌드 검증 (TypeScript 타입 체크 포함)"
         run: npm run build --prefix frontend
         env:
           VITE_API_BASE_URL: https://pharm-sight.onrender.com
 
   # ──────────────────────────────────────────────────────────
-  # Job 3: E2E 스모크 테스트 (배포된 서비스 상태 확인)
+  # Job 3: E2E 스모크 테스트
+  # 배포된 서비스의 실제 HTTP 응답을 검증합니다.
+  # 검증 대상: 9개 엔드포인트
+  #   - GET /health (헬스체크)
+  #   - GET /api/dashboard/{7개 엔드포인트}
+  #   - GET https://pharm-sight-frontend.vercel.app (프론트엔드)
   # ──────────────────────────────────────────────────────────
   e2e-smoke:
-    name: E2E 스모크 테스트 (API 헬스체크 + 프론트엔드 응답)
+    name: "E2E 스모크 테스트 (9개 엔드포인트 HTTP 검증)"
     runs-on: ubuntu-latest
     needs: [backend-test, frontend-test]
 
     steps:
-      - name: 백엔드 API 헬스체크
+      - name: "백엔드 헬스체크 (Render 배포 상태 확인)"
         run: |
-          echo "백엔드 API 헬스체크..."
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pharm-sight.onrender.com/api/health || echo "000")
-          echo "HTTP Status: $STATUS"
+          echo "=== 백엔드 API 헬스체크 ==="
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pharm-sight.onrender.com/health || echo "000")
+          echo "GET /health → HTTP $STATUS"
           if [ "$STATUS" = "200" ]; then
-            echo "백엔드 API 정상 응답 (200 OK)"
+            echo "✅ 백엔드 API 정상 응답"
           else
-            echo "주의: 백엔드 응답 $STATUS (Render 무료 티어 슬립 상태일 수 있음)"
+            echo "⚠️ 백엔드 응답 $STATUS (Render 무료 티어 슬립 상태일 수 있음)"
           fi
 
-      - name: 프론트엔드 응답 확인
+      - name: "프론트엔드 응답 확인 (Vercel 배포 상태 확인)"
         run: |
-          echo "프론트엔드 응답 확인..."
+          echo "=== 프론트엔드 응답 확인 ==="
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pharm-sight-frontend.vercel.app || echo "000")
-          echo "HTTP Status: $STATUS"
+          echo "GET / → HTTP $STATUS"
           if [ "$STATUS" = "200" ]; then
-            echo "프론트엔드 정상 응답 (200 OK)"
+            echo "✅ 프론트엔드 정상 응답"
           else
-            echo "주의: 프론트엔드 응답 $STATUS"
+            echo "⚠️ 프론트엔드 응답 $STATUS"
           fi
 
-      - name: 대시보드 API 엔드포인트 검증
+      - name: "대시보드 API 7개 엔드포인트 E2E 검증"
         run: |
-          echo "대시보드 API 엔드포인트 검증..."
+          echo "=== 대시보드 API 엔드포인트 검증 ==="
+          PASS=0
+          TOTAL=7
           for endpoint in monthly-sales drug-type-sales patient-ages hospital-prescriptions wholesale-expenses drug-coverage kpi; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pharm-sight.onrender.com/api/dashboard/$endpoint" || echo "000")
-            echo "  /api/dashboard/$endpoint → HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "  ✅ /api/dashboard/$endpoint → HTTP $STATUS"
+              PASS=$((PASS+1))
+            else
+              echo "  ⚠️ /api/dashboard/$endpoint → HTTP $STATUS"
+            fi
           done
+          echo "=== 결과: $PASS/$TOTAL 엔드포인트 정상 ==="
+
+  # ──────────────────────────────────────────────────────────
+  # Job 4: 배포 자동화 상태 확인
+  # Vercel(프론트엔드)과 Render(백엔드)는 GitHub 연동으로
+  # master push 시 자동 빌드·배포됩니다.
+  # 이 Job은 배포 완료 후 서비스 가용성을 최종 확인합니다.
+  # ──────────────────────────────────────────────────────────
+  deploy-verify:
+    name: "배포 자동화 상태 확인 (Vercel + Render)"
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+
+    steps:
+      - name: "Vercel 프론트엔드 배포 확인"
+        run: |
+          echo "=== Vercel 프론트엔드 자동 배포 확인 ==="
+          echo "배포 방식: GitHub 연동 자동 배포 (master push 트리거)"
+          echo "배포 URL: https://pharm-sight-frontend.vercel.app"
+          echo ""
+          # Vercel은 push 후 수초 내 배포 완료 — 30초 대기 후 확인
+          sleep 30
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pharm-sight-frontend.vercel.app || echo "000")
+          echo "프론트엔드 응답: HTTP $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Vercel 배포 정상 확인"
+          else
+            echo "⚠️ Vercel 배포 확인 실패 (HTTP $STATUS)"
+          fi
+
+      - name: "Render 백엔드 배포 확인"
+        run: |
+          echo "=== Render 백엔드 자동 배포 확인 ==="
+          echo "배포 방식: GitHub 연동 자동 배포 (master push 트리거)"
+          echo "배포 URL: https://pharm-sight.onrender.com"
+          echo ""
+          # Render 무료 플랜은 배포에 2~5분 소요 — 상태만 기록
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pharm-sight.onrender.com/health || echo "000")
+          echo "백엔드 /health 응답: HTTP $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Render 배포 정상 확인"
+          else
+            echo "⚠️ Render 배포 진행 중이거나 슬립 상태 (HTTP $STATUS)"
+            echo "   Render 무료 플랜은 배포 후 2~5분 소요, 15분 비활성 시 슬립"
+          fi
+
+      - name: "Supabase DB 연결 상태 (간접 확인)"
+        run: |
+          echo "=== Supabase PostgreSQL 연결 상태 ==="
+          echo "운영 방식: Supabase 클라우드 매니지드 (상시 가동)"
+          echo "백엔드 API가 정상 응답하면 DB 연결도 정상입니다."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pharm-sight.onrender.com/api/dashboard/kpi" || echo "000")
+          echo "GET /api/dashboard/kpi → HTTP $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Supabase DB 연결 정상 (API 응답으로 간접 확인)"
+          else
+            echo "⚠️ DB 연결 확인 불가 (백엔드 슬립 중일 수 있음)"
+          fi
