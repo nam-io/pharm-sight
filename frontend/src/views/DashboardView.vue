@@ -19,6 +19,73 @@ const currentDateLabel = computed(() => {
   return `📅 ${now.getFullYear()}년 ${now.getMonth() + 1}월 기준`
 })
 
+/**
+ * 대시보드 데이터 전체를 CSV 파일로 내보냅니다.
+ * 월별 매출, 병원별 처방건수, 도매상별 지출을 하나의 파일에 시트별로 구분하여 저장합니다.
+ */
+function exportToCsv() {
+  const rows: string[] = []
+  const now = new Date()
+  const fileName = `pharm-sight-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}.csv`
+
+  // 월별 매출 섹션
+  rows.push('# 월별 매출 및 조제 건수')
+  rows.push('월,총매출(원),조제건수')
+  for (const d of dashboardData.value.monthlySales) {
+    rows.push(`${d.month},${d.totalAmount},${d.prescriptionCount}`)
+  }
+  rows.push('')
+
+  // 의약품 유형별 매출 섹션
+  rows.push('# 의약품 유형별 매출')
+  rows.push('유형,매출액(원)')
+  for (const d of dashboardData.value.drugTypeSales) {
+    rows.push(`${d.label},${d.amount}`)
+  }
+  rows.push('')
+
+  // 연령대별 환자 수 섹션
+  rows.push('# 방문 환자 연령대 분포')
+  rows.push('연령대,환자수')
+  for (const d of dashboardData.value.patientAgeGroups) {
+    rows.push(`${d.ageGroup},${d.count}`)
+  }
+  rows.push('')
+
+  // 병원별 처방건수 섹션
+  rows.push('# 처방전 발행 의료기관 TOP 6')
+  rows.push('의료기관명,처방건수')
+  for (const d of dashboardData.value.hospitalPrescriptions) {
+    rows.push(`${d.hospitalName},${d.count}`)
+  }
+  rows.push('')
+
+  // 도매상별 지출 섹션
+  rows.push('# 도매상별 누적 지출')
+  rows.push('도매상명,지출액(원)')
+  for (const d of dashboardData.value.wholesaleExpenses) {
+    rows.push(`${d.wholesaleName},${d.amount}`)
+  }
+  rows.push('')
+
+  // 급여/비급여 지출 섹션
+  rows.push('# 급여·비급여 지출 비율')
+  rows.push('구분,지출액(원)')
+  for (const d of dashboardData.value.drugCoverage) {
+    rows.push(`${d.label},${d.amount}`)
+  }
+
+  // BOM 포함 UTF-8로 다운로드 (엑셀 한글 깨짐 방지)
+  const bom = '\uFEFF'
+  const blob = new Blob([bom + rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 // 대시보드 데이터와 AI 인사이트를 병렬로 로드
 onMounted(() => {
   loadAll()
@@ -39,19 +106,28 @@ onMounted(() => {
             <p class="text-xs text-slate-500">약국 경영 통합 AI 대시보드</p>
           </div>
         </div>
-        <div class="flex items-center gap-4">
-          <span class="text-xs text-slate-500 bg-slate-800 px-3 py-1.5 rounded-full">
+        <div class="flex items-center gap-2 sm:gap-4">
+          <span class="hidden sm:inline text-xs text-slate-500 bg-slate-800 px-3 py-1.5 rounded-full">
             {{ currentDateLabel }} · Supabase 연동
           </span>
           <span v-if="error" class="text-xs bg-rose-900/50 text-rose-400 border border-rose-800 px-3 py-1.5 rounded-full">
             ⚠ API 오류 · 임시 데이터
           </span>
           <span v-else-if="isLoading" class="text-xs bg-slate-800 text-slate-400 border border-slate-700 px-3 py-1.5 rounded-full">
-            ⟳ 데이터 로딩 중...
+            ⟳ 로딩 중...
           </span>
           <span v-else class="text-xs bg-emerald-900/50 text-emerald-400 border border-emerald-800 px-3 py-1.5 rounded-full">
-            ● 실시간 데이터 연동
+            ● 실시간 연동
           </span>
+          <!-- CSV 내보내기 버튼 -->
+          <button
+            @click="exportToCsv"
+            :disabled="isLoading"
+            class="flex items-center gap-1.5 text-xs bg-blue-900/40 hover:bg-blue-800/60 text-blue-400 border border-blue-800 hover:border-blue-600 px-3 py-1.5 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title="현재 대시보드 데이터를 CSV 파일로 내보냅니다"
+          >
+            ⬇ <span class="hidden sm:inline">데이터 내보내기</span><span class="sm:hidden">CSV</span>
+          </button>
         </div>
       </div>
     </header>

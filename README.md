@@ -81,7 +81,7 @@
 
 ## 주요 기능
 
-### AI 경영 분석 (신규)
+### AI 경영 분석
 - Google Gemini AI가 이번 달 경영 현황을 2~3문장으로 친절하게 요약
 - 긍정적 하이라이트 및 주의 사항 배지 자동 생성
 - 데이터 기반 실용적 경영 추천 조언 제공
@@ -98,6 +98,12 @@
 ### 의약품 지출 분석
 - 도매상별 누적 지출 현황 (바 차트)
 - 약품 특성별(급여/비급여, 전문의약품/일반의약품) 지출 비율 (파이 차트)
+
+### CSV 데이터 내보내기
+- 대시보드 헤더의 "데이터 내보내기" 버튼 클릭 시 전체 경영 데이터를 CSV로 즉시 다운로드
+- 월별 매출 / 의약품 유형별 / 연령대별 / 병원별 / 도매상별 6개 섹션 포함
+- BOM(Byte Order Mark) 포함 UTF-8 인코딩으로 Excel 한글 깨짐 방지
+- 파일명 자동 생성: `pharm-sight-YYYYMM.csv`
 
 ---
 
@@ -119,7 +125,79 @@
 ### 🧩 아키텍처 및 코드 품질 원칙 (Architecture & Code Quality)
 - **관심사 분리 (SoC):** 백엔드는 Controller(요청/응답) - Service(비즈니스 로직) - Repository(데이터 접근)로 계층을 엄격히 분리하여 단일 책임 원칙(SRP)을 준수합니다.
 - **의존성 주입 (DI):** 모든 Service와 Repository는 인터페이스(`IService`, `IRepository`)를 통해 의존성을 주입받아 모듈 간 결합도를 낮추고 테스트 용이성을 극대화합니다.
-- **반응형 디자인 (Responsive UX):** Tailwind CSS의 Breakpoint(`sm:`, `md:`, `lg:`)를 적극 활용하여, 약국 카운터의 PC 모니터뿐만 아니라 약사의 모바일/태블릿 환경에서도 UI가 자연스럽게 동작하는 직관적인 사용자 경험(UX)을 제공합니다.
+- **반응형 디자인 (Responsive UX):** Tailwind CSS의 Breakpoint(`sm:`, `lg:`)를 적극 활용하여, 약국 카운터의 PC 모니터뿐만 아니라 약사의 모바일/태블릿 환경에서도 UI가 자연스럽게 동작합니다.
+
+---
+
+## UX 상세 설명
+
+### 실제 배포 URL에서 직접 확인 가능
+
+> **라이브 데모:** [https://pharm-sight-frontend.vercel.app](https://pharm-sight-frontend.vercel.app)
+
+### 화면 상태별 UX 처리
+
+| 상태 | 표시 내용 | 구현 위치 |
+|------|----------|-----------|
+| **초기 로딩 중** | 헤더 "⟳ 로딩 중..." 배지 표시, 차트 영역 빈 상태 | `DashboardView.vue:49-51` |
+| **API 정상 연결** | 헤더 "● 실시간 연동" 초록 배지 + Supabase 실데이터 | `DashboardView.vue:52-54` |
+| **API 오류 발생** | 헤더 "⚠ API 오류 · 임시 데이터" 빨간 배지 + Mock 폴백 | `DashboardView.vue:46-48` |
+| **AI 분석 로딩** | AiInsightPanel 스켈레톤 애니메이션 표시 | `AiInsightPanel.vue` |
+| **AI API 키 미설정** | "AI 분석 기능을 사용하려면 API 키 설정이 필요합니다" 안내 | `AiInsightService.cs` |
+
+### KPI 카드 — 전월 대비 변화율 표시
+
+```
+💰 이번 달 총 매출      💊 이번 달 조제 건수
+  1,680 만원              420 건
+  ▲ 9.1% 전월 대비        ▲ 9.1% 전월 대비
+
+🏥 이번 달 방문 환자    📦 이번 달 발주 지출
+  287 명                  960 만원
+  ▲ 4.7% 전월 대비        ▼ 2.3% 전월 대비
+```
+- 상승(▲): 초록색(`text-emerald-400`)
+- 하락(▼): 빨간색(`text-rose-400`)
+
+### CSV 데이터 내보내기 UX
+
+헤더 우측 "⬇ 데이터 내보내기" 버튼:
+- 모바일: "CSV" 짧은 텍스트
+- PC: "데이터 내보내기" 전체 텍스트
+- 로딩 중 비활성화(disabled) 처리
+
+---
+
+## 반응형 디자인 (Responsive Design)
+
+### 레이아웃 Breakpoint 요약
+
+| 화면 | KPI 카드 | 차트 행 1 | 차트 행 2 | 차트 행 3 |
+|------|----------|-----------|-----------|-----------|
+| 모바일 (< 1024px) | 2열 | 1열 (세로 스택) | 1열 | 1열 |
+| 데스크탑 (≥ 1024px) | 4열 | 3열 (2:1) | 2열 | 3열 (2:1) |
+
+```html
+<!-- KPI: 모바일 2열 / PC 4열 -->
+<section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+
+<!-- 매출 차트: 모바일 전체 너비 / PC 3열 중 2열 -->
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <div class="lg:col-span-2">  <!-- 매출 라인차트 -->
+
+<!-- 연령대·병원: 모바일 1열 / PC 2열 -->
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+```
+
+### 모바일 최적화 세부 사항
+
+- 헤더 날짜 배지 모바일 숨김 (`hidden sm:inline`) — 헤더 줄 바꿈 방지
+- 버튼 터치 타겟 `py-1.5` — 44px 최소 터치 영역 확보
+- `sticky top-0 backdrop-blur` 헤더 — 스크롤 시 차트 제목 가독성 유지
+- ECharts 차트 `h-64` 고정 높이 — 모바일에서 차트 찌그러짐 방지
+
+> 디바이스별 상세 테스트 결과: [`docs/responsive-testing.md`](docs/responsive-testing.md)
+> (iPhone SE · iPhone 14 Pro · iPad Mini · iPad Air · 1280px · 1920px 검증 완료)
 
 ---
 
