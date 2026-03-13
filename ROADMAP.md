@@ -75,7 +75,7 @@ Supabase(PostgreSQL) 실데이터 기반 Dapper API 구현, Render 배포, 프�
 - [x] **[프론트엔드 실연동]**: `VITE_API_BASE_URL` 환경변수 기반 실데이터 연동 완료
 - [x] **[Keep-Alive]**: `useKeepAlive.ts` composable — 10분 주기 백엔드 핑
 - [x] **[배포 버그 수정]**: URI 형식 연결 문자열 파싱 오류, IPv6 연결 실패 수정
-- [ ] **[단위 테스트]**: `PharmSight.Tests` (xUnit, Moq) — Backlog 이동
+- [x] **[단위 테스트]**: `PharmSight.Tests` (xUnit 2.9.2, Moq 4.20.72) — DashboardService 9개 + AiInsightService 4개, 총 13개 통과
 
 ---
 
@@ -100,14 +100,14 @@ Google Gemini API를 연동하여 약국 경영 데이터를 자동 분석하고
 | **Must Have** | Phase 0, 1 완성 및 Vercel 배포 | ✅ 완료 |
 | **Should Have** | Phase 2 백엔드 API + Render/Supabase 배포 | ✅ 완료 |
 | **Could Have** | 프론트엔드-백엔드 실데이터 연동 | ✅ 완료 |
-| **Could Have** | xUnit 단위 테스트 | 📋 Backlog |
+| **Could Have** | xUnit 단위 테스트 | ✅ 완료 (13개 통과) |
 | **Won't Have** | 로그인/인증, 실시간 데이터 동기화 | — |
 
 ---
 
 ## 🔮 향후 계획 (Backlog)
 
-- **단위 테스트**: `PharmSight.Tests` (xUnit, Moq) Repository Mocking 테스트 작성
+- **기간 필터**: 날짜 범위(월/분기/연도) 선택 시 차트 데이터 재조회 (단위 테스트는 Sprint 3에서 완료)
 - **기간 필터**: 날짜 범위(월/분기/연도) 선택 시 차트 데이터 재조회
 - **데이터 내보내기**: 차트 데이터 CSV/Excel 다운로드
 - **인쇄 최적화**: 대시보드 인쇄용 CSS 미디어 쿼리
