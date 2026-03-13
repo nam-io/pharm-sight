@@ -122,10 +122,96 @@
 >
 > **SQLite → PostgreSQL 마이그레이션 근거:** Render 무료 플랜은 에페머럴(임시) 파일시스템을 사용하여 배포 시 SQLite 파일이 초기화됩니다. 클라우드 배포 환경의 데이터 영속성을 위해 Supabase PostgreSQL(무료 티어)로 전환하였으며, Dapper + Npgsql 조합으로 ORM 없이 `DATE_TRUNC`, `CTE` 등 PostgreSQL 고급 집계 쿼리를 활용합니다.
 
+### Dapper 선택 근거 — EF Core 대비 실질적 이점
+
+본 프로젝트의 대시보드 쿼리는 다음과 같은 특성을 가집니다:
+
+| 특성 | EF Core 사용 시 문제 | Dapper 해결책 |
+|------|---------------------|---------------|
+| CTE 3중 집계 (KPI 쿼리) | 복잡한 집계를 LINQ로 표현 시 비최적 SQL 생성 가능 | 개발자가 최적 SQL 직접 제어 |
+| DATE_TRUNC / AGE() 함수 | EF Core의 PostgreSQL 함수 지원 불완전 | 순수 SQL → 모든 PG 함수 자유롭게 사용 |
+| 읽기 전용 집계 조회 | Change Tracking 오버헤드 발생 | ADO.NET 직접 사용, 오버헤드 없음 |
+| DTO 직접 매핑 | 도메인 객체 → DTO 변환 추가 코드 필요 | `QueryAsync<T>` 한 줄로 DTO 직접 매핑 |
+
+**KPI 쿼리 핵심 코드** (`backend/Repositories/DashboardRepository.cs`):
+```sql
+WITH current_month AS (
+    SELECT COALESCE(SUM(s."Amount"), 0) AS sales,
+           COUNT(DISTINCT pr."Id")       AS prescriptions,
+           COUNT(DISTINCT pr."PatientId") AS patients
+    FROM "Sales" s
+    LEFT JOIN "Prescriptions" pr ON s."PrescriptionId" = pr."Id"
+    WHERE DATE_TRUNC('month', s."SaleDate"::date) = DATE_TRUNC('month', CURRENT_DATE)
+),
+prev_month AS ( ... ),  -- 전월 매출/조제건수
+current_orders AS ( ... ) -- 이번 달 발주 지출
+SELECT c.sales, c.prescriptions, c.patients, co.amount,
+       CASE WHEN p.sales = 0 THEN 0
+            ELSE ROUND(((c.sales - p.sales) / p.sales * 100)::numeric, 1)
+       END AS "SalesChangeRate"
+FROM current_month c, prev_month p, current_orders co;
+-- → CTE 3개, 단 1회 DB 왕복으로 KPI 전체 계산
+```
+
+> 전체 코드 및 아키텍처 상세: [`docs/architecture.md`](docs/architecture.md)
+
 ### 🧩 아키텍처 및 코드 품질 원칙 (Architecture & Code Quality)
+
 - **관심사 분리 (SoC):** 백엔드는 Controller(요청/응답) - Service(비즈니스 로직) - Repository(데이터 접근)로 계층을 엄격히 분리하여 단일 책임 원칙(SRP)을 준수합니다.
-- **의존성 주입 (DI):** 모든 Service와 Repository는 인터페이스(`IService`, `IRepository`)를 통해 의존성을 주입받아 모듈 간 결합도를 낮추고 테스트 용이성을 극대화합니다.
-- **반응형 디자인 (Responsive UX):** Tailwind CSS의 Breakpoint(`sm:`, `lg:`)를 적극 활용하여, 약국 카운터의 PC 모니터뿐만 아니라 약사의 모바일/태블릿 환경에서도 UI가 자연스럽게 동작합니다.
+- **의존성 주입 (DI):** 모든 Service와 Repository는 인터페이스(`IDashboardService`, `IDashboardRepository`)를 통해 의존성을 주입받아 결합도를 낮추고 xUnit Moq 테스트 용이성을 극대화합니다.
+- **반응형 디자인 (Responsive UX):** Tailwind CSS Breakpoint(`sm:`, `lg:`)로 모바일부터 데스크탑까지 자연스럽게 동작합니다.
+
+**전역 예외 처리 미들웨어** (`backend/Middleware/GlobalExceptionMiddleware.cs`):
+
+```csharp
+public class GlobalExceptionMiddleware
+{
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try   { await _next(context); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "처리되지 않은 예외 발생: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+    }
+
+    private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    {
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = exception switch
+        {
+            ArgumentNullException     => (int)HttpStatusCode.BadRequest,        // 400
+            InvalidOperationException => (int)HttpStatusCode.BadRequest,        // 400
+            _                         => (int)HttpStatusCode.InternalServerError // 500
+        };
+        var response = new { error = exception.Message, statusCode = context.Response.StatusCode };
+        await context.Response.WriteAsync(JsonSerializer.Serialize(response,
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+    }
+}
+```
+
+오류 응답 형식 (모든 예외에 일관 적용):
+```json
+{ "error": "처리 중 오류가 발생했습니다.", "statusCode": 500 }
+```
+
+**DI 등록 구조** (`backend/Program.cs`):
+```csharp
+builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
+builder.Services.AddScoped<IDashboardService,   DashboardService>();
+builder.Services.AddScoped<IAiInsightService,   AiInsightService>();
+builder.Services.AddMemoryCache();          // AI 인사이트 30분 캐시
+builder.Services.AddHttpClient("Gemini",    // Named HttpClient (타임아웃 30초)
+    c => c.Timeout = TimeSpan.FromSeconds(30));
+
+app.UseMiddleware<GlobalExceptionMiddleware>(); // 파이프라인 최선두 등록
+app.UseCors("ViteFrontend");
+app.MapControllers();
+```
+
+> 계층별 전체 코드 및 Dapper SQL 쿼리 상세: [`docs/architecture.md`](docs/architecture.md)
 
 ---
 
