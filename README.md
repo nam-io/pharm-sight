@@ -53,6 +53,8 @@
 | **Architecture** | Controller → Service → Repository 계층 분리 (SRP 준수) |
 
 > ⚠️ Entity Framework는 사용하지 않습니다. 모든 DB 접근은 Dapper를 통한 순수 SQL로 처리합니다.
+>
+> **SQLite → PostgreSQL 마이그레이션 근거:** Render 무료 플랜은 에페머럴 파일시스템으로 배포 시 SQLite 파일이 초기화됩니다. 클라우드 배포 환경의 데이터 영속성을 위해 Supabase PostgreSQL로 전환하였으며, Dapper + Npgsql 조합으로 ORM 없이 순수 SQL을 유지합니다.
 
 ### 🧩 아키텍처 및 코드 품질 원칙 (Architecture & Code Quality)
 - **관심사 분리 (SoC):** 백엔드는 Controller(요청/응답) - Service(비즈니스 로직) - Repository(데이터 접근)로 계층을 엄격히 분리하여 단일 책임 원칙(SRP)을 준수합니다.
@@ -162,12 +164,12 @@ VITE_API_BASE_URL=https://pharm-sight.onrender.com
 ### 백엔드 단위 테스트 (xUnit)
 
 ```bash
-cd backend
-dotnet test PharmSight.Tests/ -v normal
+dotnet test backend/PharmSight.Tests/PharmSight.Tests.csproj --verbosity normal
 ```
 
-- Service 계층 메서드별 단위 테스트
-- Repository는 Mocking 처리 (`Moq` 라이브러리 사용)
+- `DashboardServiceTests`: 7개 메서드 × Repository Mock 검증 (빈 결과, 엣지 케이스 포함)
+- `AiInsightServiceTests`: API 키 미설정 Graceful Degradation, IMemoryCache 캐시 히트 검증
+- 총 13개 테스트 케이스 전체 통과 (`Moq` 라이브러리로 IDashboardRepository 목킹)
 
 ### 개발 진행 추적
 
@@ -187,4 +189,4 @@ dotnet test PharmSight.Tests/ -v normal
 | `sprint-close` | 스프린트 완료 처리 및 상태 업데이트 |
 | `hotfix-close` | 긴급 버그 수정 마무리 |
 
-자세한 개발 프로세스는 [`docs/dev-process.md`](docs/dev-process.md)를 참조하세요.
+각 에이전트의 상세 프롬프트는 [`.claude/agents/`](.claude/agents/) 디렉토리에, 스프린트별 진행 기록은 [`docs/sprint/`](docs/sprint/) 디렉토리에서 확인할 수 있습니다.

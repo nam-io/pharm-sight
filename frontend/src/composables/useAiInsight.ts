@@ -1,6 +1,6 @@
 /**
  * @composable useAiInsight
- * @description Claude AI가 생성한 약국 경영 인사이트를 백엔드 API에서 조회하는 composable.
+ * @description Google Gemini AI가 생성한 약국 경영 인사이트를 백엔드 API에서 조회하는 composable.
  * VITE_API_BASE_URL이 없으면 요청을 건너뜁니다.
  */
 import { ref } from 'vue'
