@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: pharm-sight-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    branch: master
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: AllowedOrigins__0
+        value: https://pharm-sight-frontend.vercel.app

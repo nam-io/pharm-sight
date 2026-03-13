@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useDashboardData } from '@/composables/useDashboardData'
 import SalesLineChart from '@/components/charts/SalesLineChart.vue'
 import DrugTypePieChart from '@/components/charts/DrugTypePieChart.vue'
@@ -7,7 +8,10 @@ import HospitalBarChart from '@/components/charts/HospitalBarChart.vue'
 import WholesaleBarChart from '@/components/charts/WholesaleBarChart.vue'
 import DrugCoverageChart from '@/components/charts/DrugCoverageChart.vue'
 
-const { dashboardData, kpiCards } = useDashboardData()
+const { dashboardData, kpiCards, isLoading, error, loadAll } = useDashboardData()
+
+// 컴포넌트 마운트 시 API 데이터 로드 (VITE_API_BASE_URL 설정 시 실제 API 호출)
+onMounted(() => loadAll())
 </script>
 
 <template>
@@ -27,8 +31,14 @@ const { dashboardData, kpiCards } = useDashboardData()
           <span class="text-xs text-slate-500 bg-slate-800 px-3 py-1.5 rounded-full">
             📅 2025년 2월 기준 · Mock 데이터
           </span>
-          <span class="text-xs bg-emerald-900/50 text-emerald-400 border border-emerald-800 px-3 py-1.5 rounded-full">
-            ● 실시간 연동 준비 중
+          <span v-if="error" class="text-xs bg-rose-900/50 text-rose-400 border border-rose-800 px-3 py-1.5 rounded-full">
+            ⚠ API 오류 · Mock 데이터
+          </span>
+          <span v-else-if="isLoading" class="text-xs bg-slate-800 text-slate-400 border border-slate-700 px-3 py-1.5 rounded-full">
+            ⟳ 데이터 로딩 중...
+          </span>
+          <span v-else class="text-xs bg-emerald-900/50 text-emerald-400 border border-emerald-800 px-3 py-1.5 rounded-full">
+            ● 실시간 데이터 연동
           </span>
         </div>
       </div>
