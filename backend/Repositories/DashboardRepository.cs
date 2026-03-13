@@ -15,8 +15,32 @@ public class DashboardRepository : IDashboardRepository
 
     public DashboardRepository(IConfiguration configuration)
     {
-        _connectionString = configuration.GetConnectionString("DefaultConnection")
+        var raw = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("데이터베이스 연결 문자열이 설정되지 않았습니다.");
+        _connectionString = NormalizeConnectionString(raw);
+    }
+
+    /// <summary>
+    /// postgresql:// 또는 postgres:// URI 형식을 Npgsql 키=값 형식으로 변환합니다.
+    /// Render 환경변수에 PostgreSQL URI가 주입되는 경우를 처리합니다.
+    /// </summary>
+    private static string NormalizeConnectionString(string cs)
+    {
+        if (!cs.StartsWith("postgresql://") && !cs.StartsWith("postgres://"))
+            return cs;
+
+        var uri = new Uri(cs);
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.Port > 0 ? uri.Port : 5432,
+            Database = uri.AbsolutePath.TrimStart('/'),
+            Username = userInfo[0],
+            Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "",
+            SslMode = SslMode.Require,
+        };
+        return builder.ConnectionString;
     }
 
     /// <summary>최근 12개월 월별 매출 및 조제 건수 집계</summary>
