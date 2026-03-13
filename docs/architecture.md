@@ -501,3 +501,60 @@ export function useDashboardData() {
 - `useDashboardData` / `useAiInsight` / `useKeepAlive` 관심사 분리
 - `Promise.all` 병렬 호출로 7개 API 동시 요청 → 순차 호출 대비 응답시간 ~6배 단축
 - Mock 폴백으로 API 연결 없는 환경에서도 UI 개발/데모 가능
+
+---
+
+## 10. 데이터베이스 스키마
+
+```
+Patients        (Id, DateOfBirth)
+Hospitals       (Id, Name)
+Drugs           (Id, Name, Type[ETC/OTC], IsCovered)
+Prescriptions   (Id, PatientId -> Patients, HospitalId -> Hospitals, DispenseDate)
+Orders          (Id, WholesaleName, DrugId -> Drugs, Amount, OrderDate)
+Sales           (Id, Amount, SaleDate, PrescriptionId -> Prescriptions [nullable])
+```
+
+**주요 관계:**
+- `Prescriptions.PatientId` -> `Patients.Id`
+- `Prescriptions.HospitalId` -> `Hospitals.Id`
+- `Orders.DrugId` -> `Drugs.Id`
+- `Sales.PrescriptionId` -> `Prescriptions.Id` (조제약 매출은 처방전 연결, 일반의약품 매출은 null)
+
+---
+
+## 11. 프로젝트 구조
+
+```
+pharm-sight/
+├── frontend/               # Vue 3 + Vite 프론트엔드
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── AiInsightPanel.vue   # AI 경영 분석 패널
+│   │   │   └── charts/             # ECharts 차트 컴포넌트
+│   │   ├── composables/
+│   │   │   ├── useDashboardData.ts  # 대시보드 데이터 fetch
+│   │   │   ├── useAiInsight.ts      # AI 인사이트 fetch
+│   │   │   └── useKeepAlive.ts      # Render 슬립 방지 핑
+│   │   ├── views/          # 페이지 컴포넌트
+│   │   └── types/          # TypeScript 타입 정의
+│   ├── .env.production     # Vercel 빌드용 API URL 설정
+│   ├── package.json
+│   └── vite.config.ts
+├── backend/                # .NET 9.0 Web API 백엔드
+│   ├── Controllers/        # HTTP 요청 처리
+│   ├── Services/
+│   │   ├── AiInsightService.cs   # Gemini AI 인사이트 생성
+│   │   └── Interfaces/
+│   ├── Repositories/       # DB 접근 (Dapper + Npgsql)
+│   ├── Models/             # DTO 및 도메인 모델
+│   └── PharmSight.Tests/   # xUnit 단위 테스트
+├── database/
+│   └── schema.sql          # PostgreSQL DDL 스크립트
+├── docs/
+│   ├── sprint/             # 스프린트 계획/완료 문서
+│   └── deploy-history/     # 배포 이력 아카이브
+├── .github/workflows/      # CI/CD 파이프라인
+├── CLAUDE.md               # AI 협업 가이드
+└── ROADMAP.md              # 프로젝트 로드맵
+```

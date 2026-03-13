@@ -1,0 +1,79 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { useDashboardData } from './useDashboardData'
+
+// import.meta.env 모킹
+vi.stubEnv('VITE_API_BASE_URL', '')
+
+describe('useDashboardData', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('초기 상태에서 Mock 데이터가 로드된다', () => {
+    const { dashboardData, isLoading, error } = useDashboardData()
+
+    expect(isLoading.value).toBe(false)
+    expect(error.value).toBeNull()
+    expect(dashboardData.value.monthlySales.length).toBeGreaterThan(0)
+    expect(dashboardData.value.drugTypeSales.length).toBe(2)
+    expect(dashboardData.value.patientAgeGroups.length).toBeGreaterThan(0)
+    expect(dashboardData.value.hospitalPrescriptions.length).toBeGreaterThan(0)
+    expect(dashboardData.value.wholesaleExpenses.length).toBeGreaterThan(0)
+    expect(dashboardData.value.drugCoverage.length).toBe(2)
+  })
+
+  it('API_BASE 미설정 시 loadAll은 Mock 데이터를 유지한다', async () => {
+    const { dashboardData, loadAll } = useDashboardData()
+    const before = { ...dashboardData.value }
+
+    await loadAll()
+
+    // Mock 모드에서는 데이터가 변경되지 않음
+    expect(dashboardData.value.monthlySales.length).toBe(before.monthlySales.length)
+  })
+
+  it('KPI 카드가 Mock 기본값으로 생성된다', () => {
+    const { kpiCards } = useDashboardData()
+
+    expect(kpiCards.value.length).toBe(4)
+    expect(kpiCards.value[0].title).toBe('이번 달 총 매출')
+    expect(kpiCards.value[1].title).toBe('이번 달 조제 건수')
+    expect(kpiCards.value[2].title).toBe('이번 달 방문 환자')
+    expect(kpiCards.value[3].title).toBe('이번 달 발주 지출')
+  })
+
+  it('KPI 카드에 단위와 아이콘이 포함된다', () => {
+    const { kpiCards } = useDashboardData()
+
+    expect(kpiCards.value[0].unit).toBe('만원')
+    expect(kpiCards.value[1].unit).toBe('건')
+    expect(kpiCards.value[2].unit).toBe('명')
+    expect(kpiCards.value[3].unit).toBe('만원')
+
+    kpiCards.value.forEach(card => {
+      expect(card.icon).toBeTruthy()
+    })
+  })
+
+  it('Mock 데이터의 월별 매출이 시간순으로 정렬되어 있다', () => {
+    const { dashboardData } = useDashboardData()
+    const months = dashboardData.value.monthlySales.map(m => m.month)
+
+    for (let i = 1; i < months.length; i++) {
+      expect(months[i] > months[i - 1]).toBe(true)
+    }
+  })
+
+  it('Mock 데이터의 ETC/OTC 유형이 올바르게 구분된다', () => {
+    const { dashboardData } = useDashboardData()
+    const types = dashboardData.value.drugTypeSales.map(d => d.type)
+
+    expect(types).toContain('ETC')
+    expect(types).toContain('OTC')
+  })
+
+  it('에러 유형(errorType)이 초기에 null이다', () => {
+    const { errorType } = useDashboardData()
+    expect(errorType.value).toBeNull()
+  })
+})

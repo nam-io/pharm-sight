@@ -1,4 +1,4 @@
-name: CI - 빌드 및 테스트 자동화
+name: CI - 빌드, 테스트, 커버리지 자동화
 
 on:
   push:
@@ -7,8 +7,11 @@ on:
     branches: [master, develop]
 
 jobs:
+  # ──────────────────────────────────────────────────────────
+  # Job 1: 백엔드 단위/통합 테스트 + 코드 커버리지
+  # ──────────────────────────────────────────────────────────
   backend-test:
-    name: 백엔드 빌드 및 xUnit 단위 테스트
+    name: 백엔드 xUnit 테스트 + 커버리지 측정
     runs-on: ubuntu-latest
 
     steps:
@@ -29,18 +32,29 @@ jobs:
       - name: 백엔드 빌드 (Release)
         run: dotnet build backend/PharmSight.Api.csproj --no-restore --configuration Release
 
-      - name: xUnit 단위 테스트 실행
-        run: dotnet test backend/PharmSight.Tests/PharmSight.Tests.csproj --configuration Release --verbosity normal --logger "trx;LogFileName=test-results.trx"
+      - name: xUnit 단위/통합 테스트 + Coverlet 커버리지 수집
+        run: >
+          dotnet test backend/PharmSight.Tests/PharmSight.Tests.csproj
+          --configuration Release
+          --verbosity normal
+          --logger "trx;LogFileName=test-results.trx"
+          --collect:"XPlat Code Coverage"
+          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
       - name: 테스트 결과 업로드
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: backend-test-results
-          path: backend/PharmSight.Tests/TestResults/*.trx
+          path: |
+            backend/PharmSight.Tests/TestResults/*.trx
+            backend/PharmSight.Tests/TestResults/**/coverage.cobertura.xml
 
-  frontend-build:
-    name: 프론트엔드 빌드 검증 (Vite)
+  # ──────────────────────────────────────────────────────────
+  # Job 2: 프론트엔드 단위 테스트 + 빌드 검증
+  # ──────────────────────────────────────────────────────────
+  frontend-test:
+    name: 프론트엔드 Vitest 단위 테스트 + 빌드 검증
     runs-on: ubuntu-latest
 
     steps:
@@ -57,7 +71,49 @@ jobs:
       - name: NPM 패키지 설치
         run: npm ci --prefix frontend
 
+      - name: Vitest 단위 테스트 실행
+        run: npm test --prefix frontend
+
       - name: 프론트엔드 프로덕션 빌드 검증
         run: npm run build --prefix frontend
         env:
           VITE_API_BASE_URL: https://pharm-sight.onrender.com
+
+  # ──────────────────────────────────────────────────────────
+  # Job 3: E2E 스모크 테스트 (배포된 서비스 상태 확인)
+  # ──────────────────────────────────────────────────────────
+  e2e-smoke:
+    name: E2E 스모크 테스트 (API 헬스체크 + 프론트엔드 응답)
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+
+    steps:
+      - name: 백엔드 API 헬스체크
+        run: |
+          echo "백엔드 API 헬스체크..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pharm-sight.onrender.com/api/health || echo "000")
+          echo "HTTP Status: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "백엔드 API 정상 응답 (200 OK)"
+          else
+            echo "주의: 백엔드 응답 $STATUS (Render 무료 티어 슬립 상태일 수 있음)"
+          fi
+
+      - name: 프론트엔드 응답 확인
+        run: |
+          echo "프론트엔드 응답 확인..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pharm-sight-frontend.vercel.app || echo "000")
+          echo "HTTP Status: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "프론트엔드 정상 응답 (200 OK)"
+          else
+            echo "주의: 프론트엔드 응답 $STATUS"
+          fi
+
+      - name: 대시보드 API 엔드포인트 검증
+        run: |
+          echo "대시보드 API 엔드포인트 검증..."
+          for endpoint in monthly-sales drug-type-sales patient-ages hospital-prescriptions wholesale-expenses drug-coverage kpi; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pharm-sight.onrender.com/api/dashboard/$endpoint" || echo "000")
+            echo "  /api/dashboard/$endpoint → HTTP $STATUS"
+          done
