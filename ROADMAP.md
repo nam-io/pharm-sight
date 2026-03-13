@@ -12,8 +12,8 @@
 
 | 항목 | 현황 |
 |------|------|
-| 전체 진행률 | 100% (3/3 Phase 완료) |
-| 현재 Phase | Phase 3 완료 / 전 Phase 완료 |
+| 전체 진행률 | 100% (4/4 Phase 완료) |
+| 현재 Phase | Phase 4 완료 / 전 Phase 완료 |
 | 프론트엔드 배포 | https://pharm-sight-frontend.vercel.app ✅ |
 | 백엔드 배포 | https://pharm-sight.onrender.com ✅ |
 | DB | Supabase PostgreSQL ✅ |
@@ -91,6 +91,20 @@ Google Gemini API를 연동하여 약국 경영 데이터를 자동 분석하고
 - [x] **[프론트엔드 패널]**: `AiInsightPanel.vue` — 요약·하이라이트·경고·추천 표시, 로딩 스켈레톤
 - [x] **[앱 리브랜딩]**: "약국 경영 통합 AI 대시보드" 명칭 반영
 - [x] **[Render 환경변수]**: `Gemini__ApiKey` 등록
+
+---
+
+### ✅ Phase 4: 테스트 전략 및 CI/CD 파이프라인 (Sprint 4)
+**상태:** ✅ 완료
+
+#### 목표
+xUnit 단위 테스트 및 GitHub Actions CI 파이프라인을 구축하여 해커톤 "검증 계획" 평가 기준에 대응한다.
+
+#### 작업 목록
+- [x] **[xUnit 테스트]**: `PharmSight.Tests` — DashboardService 9개 + AiInsightService 4개, 총 13개 통과
+- [x] **[CI/CD 재구성]**: `.github/workflows/ci.yml` — Python 템플릿 → .NET 9 + Vue 3 실제 파이프라인
+- [x] **[CLAUDE.md 현행화]**: SQLite→PostgreSQL, .NET 8→9, Gemini AI 항목 반영
+- [x] **[push 배포]**: `git push origin master` → GitHub Actions 트리거
 
 ---
 
