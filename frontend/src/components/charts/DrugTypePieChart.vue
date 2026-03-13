@@ -23,16 +23,16 @@ const option = computed(() => ({
     formatter: '{b}: {c}원 ({d}%)',
   },
   legend: {
-    orient: 'vertical',
-    right: '5%',
-    top: 'center',
+    orient: 'horizontal',
+    bottom: 0,
+    left: 'center',
     textStyle: { color: '#94a3b8' },
   },
   series: [
     {
       type: 'pie',
       radius: ['45%', '72%'],
-      center: ['42%', '50%'],
+      center: ['50%', '45%'],
       avoidLabelOverlap: false,
       label: {
         show: true,

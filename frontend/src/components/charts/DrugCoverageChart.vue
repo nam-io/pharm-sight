@@ -24,16 +24,16 @@ const option = computed(() => ({
       `${p.name}<br/><b>${(p.value / 10000).toLocaleString()}만원</b> (${p.percent}%)`,
   },
   legend: {
-    orient: 'vertical',
-    right: '5%',
-    top: 'center',
+    orient: 'horizontal',
+    bottom: 0,
+    left: 'center',
     textStyle: { color: '#94a3b8' },
   },
   series: [
     {
       type: 'pie',
       radius: ['45%', '72%'],
-      center: ['42%', '50%'],
+      center: ['50%', '45%'],
       label: {
         show: true,
         position: 'inside',
