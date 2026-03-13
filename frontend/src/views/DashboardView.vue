@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { useDashboardData } from '@/composables/useDashboardData'
 import { useAiInsight } from '@/composables/useAiInsight'
 import AiInsightPanel from '@/components/AiInsightPanel.vue'
@@ -18,6 +18,22 @@ const currentDateLabel = computed(() => {
   const now = new Date()
   return `📅 ${now.getFullYear()}년 ${now.getMonth() + 1}월 기준`
 })
+
+// 기간 필터 — 월별 매출 차트 표시 개월 수 선택 (3 / 6 / 12개월)
+const periodOptions = [
+  { label: '최근 3개월', value: 3 },
+  { label: '최근 6개월', value: 6 },
+  { label: '최근 12개월', value: 12 },
+]
+const selectedPeriod = ref(12)
+
+/**
+ * 선택된 기간에 따라 월별 매출 데이터를 필터링합니다.
+ * 백엔드 재호출 없이 이미 로드된 데이터를 클라이언트에서 슬라이싱합니다.
+ */
+const filteredMonthlySales = computed(() =>
+  dashboardData.value.monthlySales.slice(-selectedPeriod.value)
+)
 
 /**
  * 대시보드 데이터 전체를 CSV 파일로 내보냅니다.
@@ -167,12 +183,28 @@ onMounted(() => {
       <!-- 차트 그리드 행 1: 매출 추이 (넓게) + Rx/OTC 비중 -->
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <div class="mb-4">
-            <h2 class="text-sm font-semibold text-slate-200">월별 매출 및 조제 건수 추이</h2>
-            <p class="text-xs text-slate-500 mt-0.5">최근 12개월 매출(바) · 조제 건수(선)</p>
+          <div class="mb-4 flex items-start justify-between gap-2">
+            <div>
+              <h2 class="text-sm font-semibold text-slate-200">월별 매출 및 조제 건수 추이</h2>
+              <p class="text-xs text-slate-500 mt-0.5">매출(바) · 조제 건수(선) · 기간 선택 가능</p>
+            </div>
+            <!-- 기간 필터 -->
+            <div class="flex items-center gap-1 flex-shrink-0">
+              <button
+                v-for="opt in periodOptions"
+                :key="opt.value"
+                @click="selectedPeriod = opt.value"
+                class="text-xs px-2 py-1 rounded transition-colors"
+                :class="selectedPeriod === opt.value
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'"
+              >
+                {{ opt.label }}
+              </button>
+            </div>
           </div>
           <div class="h-64">
-            <SalesLineChart :data="dashboardData.monthlySales" />
+            <SalesLineChart :data="filteredMonthlySales" />
           </div>
         </div>
 

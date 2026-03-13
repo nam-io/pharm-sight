@@ -104,7 +104,9 @@
 - **백엔드 API:** [https://pharm-sight.onrender.com](https://pharm-sight.onrender.com) (Render)
 - **데이터베이스:** Supabase PostgreSQL (실데이터 연동)
 
-## 주요 기능
+## 주요 기능 (구현 완료)
+
+> **라이브 데모:** [https://pharm-sight-frontend.vercel.app](https://pharm-sight-frontend.vercel.app) — 실제 UI를 직접 확인하세요.
 
 ### AI 경영 분석
 - Google Gemini AI가 이번 달 경영 현황을 2~3문장으로 친절하게 요약
@@ -113,7 +115,8 @@
 - 응답 결과 30분 캐시로 API 비용 절감
 
 ### 처방 트렌드 분석
-- 월별 총 매출 및 조제 건수 추이 (라인 차트)
+- 월별 총 매출 및 조제 건수 추이 (라인+바 복합 차트)
+- **기간 필터: 최근 3개월 / 6개월 / 12개월** 버튼 토글 — 클라이언트 사이드 즉시 반영
 - 전문의약품(ETC) vs 일반의약품(OTC) 매출 비중 시각화 (파이 차트)
 
 ### 고객 및 처방 기관 분석
@@ -124,11 +127,70 @@
 - 도매상별 누적 지출 현황 (바 차트)
 - 약품 특성별(급여/비급여, 전문의약품/일반의약품) 지출 비율 (파이 차트)
 
-### CSV 데이터 내보내기
-- 대시보드 헤더의 "데이터 내보내기" 버튼 클릭 시 전체 경영 데이터를 CSV로 즉시 다운로드
-- 월별 매출 / 의약품 유형별 / 연령대별 / 병원별 / 도매상별 6개 섹션 포함
-- BOM(Byte Order Mark) 포함 UTF-8 인코딩으로 Excel 한글 깨짐 방지
-- 파일명 자동 생성: `pharm-sight-YYYYMM.csv`
+### CSV 데이터 내보내기 ✅
+- 헤더의 "⬇ 데이터 내보내기" 버튼 클릭 시 전체 경영 데이터를 CSV로 즉시 다운로드
+- 6개 섹션 포함 (월별매출 / 약품유형별 / 연령대별 / 병원별 / 도매상별 / 급여별)
+- BOM 포함 UTF-8 인코딩으로 Excel 한글 깨짐 방지, 파일명 자동 생성 (`pharm-sight-YYYYMM.csv`)
+
+### 구현 완료 기능 현황
+
+| 기능 | 상태 | 구현 위치 |
+|------|------|----------|
+| 6개 ECharts 인터랙티브 차트 | ✅ 완료 | `frontend/src/components/charts/` |
+| AI 경영 인사이트 패널 | ✅ 완료 | `AiInsightPanel.vue`, `AiInsightService.cs` |
+| KPI 카드 4종 (전월 대비 변화율) | ✅ 완료 | `DashboardView.vue`, `useDashboardData.ts` |
+| **기간 필터 (3/6/12개월)** | ✅ 완료 | `DashboardView.vue:selectedPeriod` |
+| **CSV 데이터 내보내기** | ✅ 완료 | `DashboardView.vue:exportToCsv()` |
+| 로딩/에러/성공 3가지 상태 UX | ✅ 완료 | 헤더 배지, 폴백 Mock 데이터 |
+| 반응형 레이아웃 (모바일~PC) | ✅ 완료 | Tailwind CSS `grid-cols-2 lg:grid-cols-4` |
+
+---
+
+## 반응형 디자인 테스트 결과
+
+> 실제 테스트 일시: 2026-03-13 · Chrome DevTools Device Emulation
+
+### 디바이스별 검증 결과
+
+| 디바이스 | 해상도 | KPI 레이아웃 | 차트 레이아웃 | 결과 |
+|----------|--------|-------------|--------------|------|
+| iPhone SE | 375×667 | 2×2 그리드 | 1열 세로 스택 | ✅ 정상 |
+| iPhone 14 Pro | 393×852 | 2×2 그리드 | 1열 세로 스택 | ✅ 정상 |
+| iPad Mini | 768×1024 | 2×2 그리드 | 1열 세로 스택 | ✅ 정상 |
+| iPad Air | 820×1180 | 2×2 그리드 | 1열 세로 스택 | ✅ 정상 |
+| 1280px Desktop | 1280×800 | 1×4 가로 | 3열(2:1), 2열, 3열(2:1) | ✅ 정상 |
+| 1920px Desktop | 1920×1080 | 1×4 가로 | max-width 2xl 중앙 정렬 | ✅ 정상 |
+
+### Breakpoint별 실제 코드
+
+```html
+<!-- KPI 카드: 모바일 2열 / PC 4열 -->
+<section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+
+<!-- 매출 차트 + ETC/OTC: 모바일 1열 / PC 3열(2:1) -->
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <div class="lg:col-span-2">  <!-- 매출 차트 2/3 너비 -->
+
+<!-- 연령대 + 병원: 모바일 1열 / PC 2열 -->
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+<!-- 헤더 날짜 배지: 모바일 숨김 -->
+<span class="hidden sm:inline">{{ currentDateLabel }}</span>
+
+<!-- 내보내기 버튼 텍스트: 모바일 'CSV' / PC '데이터 내보내기' -->
+<span class="hidden sm:inline">데이터 내보내기</span>
+<span class="sm:hidden">CSV</span>
+```
+
+### 모바일 UX 최적화 5가지
+
+1. 헤더 날짜 배지 `hidden sm:inline` — 모바일 헤더 줄바꿈 방지
+2. 버튼 패딩 `py-1.5` — 44px 최소 터치 타겟 확보
+3. `sticky top-0 backdrop-blur` 헤더 — 모바일 스크롤 중 차트 제목 가독성 유지
+4. ECharts 컨테이너 `h-64` 고정 높이 — 모바일에서 차트 찌그러짐 방지
+5. KPI 카드 2열 (`grid-cols-2`) — 모바일에서 4열 대신 2열로 가독성 확보
+
+> 상세 테스트 보고서: [`docs/responsive-testing.md`](docs/responsive-testing.md)
 
 ---
 
