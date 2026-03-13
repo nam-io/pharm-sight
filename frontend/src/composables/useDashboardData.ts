@@ -1,7 +1,23 @@
 /**
  * @composable useDashboardData
  * @description 약국 경영 대시보드 데이터를 백엔드 API에서 조회하는 Vue Composable.
- * 환경변수 VITE_API_BASE_URL이 없으면 Mock 데이터로 폴백합니다.
+ *
+ * [에러 처리 전략]
+ * 3단계 에러 분류를 통해 사용자에게 정확한 피드백을 제공합니다:
+ *   - NETWORK: fetch 자체가 실패 (인터넷 끊김, DNS 오류)
+ *   - API:     HTTP 비정상 응답 (4xx, 5xx — 서버 오류 또는 경로 오류)
+ *   - PARSE:   JSON 역직렬화 실패 (응답 형식 불일치)
+ *
+ * [폴백 전략]
+ * 환경변수 VITE_API_BASE_URL이 없거나 API 호출 실패 시 Mock 데이터를 표시합니다.
+ * 이 폴백으로 백엔드 장애 시에도 UI가 완전히 깨지지 않습니다 (Graceful Degradation).
+ *
+ * [로깅 전략]
+ * console.error에 구조화된 컨텍스트 객체를 포함합니다:
+ * { errorType, message, timestamp, fallback, raw }
+ * 브라우저 DevTools에서 오류 유형과 발생 시각을 즉시 파악할 수 있습니다.
+ *
+ * @throws 에러를 throw하지 않습니다. 오류 상태는 반환되는 `error` ref를 통해 전파됩니다.
  */
 import { ref, computed } from 'vue'
 import type { DashboardData, KpiCard } from '@/types'
@@ -9,6 +25,41 @@ import type { KpiSummary } from '@/types/api'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
 const USE_MOCK = !API_BASE
+
+// ── 에러 분류 타입 ───────────────────────────────────────────────────────
+type ApiErrorType = 'NETWORK' | 'API' | 'PARSE'
+
+interface ClassifiedError {
+  type: ApiErrorType
+  message: string
+  userMessage: string
+}
+
+/**
+ * 발생한 예외를 유형별로 분류합니다.
+ * 분류된 에러는 사용자 표시 메시지와 로깅 컨텍스트 생성에 사용됩니다.
+ */
+function classifyError(e: unknown): ClassifiedError {
+  if (e instanceof TypeError && e.message.toLowerCase().includes('fetch')) {
+    return {
+      type: 'NETWORK',
+      message: e.message,
+      userMessage: '네트워크 연결을 확인하거나 잠시 후 다시 시도해주세요.',
+    }
+  }
+  if (e instanceof Error && e.message.startsWith('API 오류')) {
+    return {
+      type: 'API',
+      message: e.message,
+      userMessage: e.message,
+    }
+  }
+  return {
+    type: 'PARSE',
+    message: e instanceof Error ? e.message : String(e),
+    userMessage: '데이터를 불러오는 중 오류가 발생했습니다.',
+  }
+}
 
 // ── Mock 데이터 (API 미연결 시 폴백) ────────────────────────────────────
 const MOCK_DATA: DashboardData = {
@@ -140,8 +191,16 @@ export function useDashboardData() {
       }
       kpiRaw.value = kpi
     } catch (e) {
-      error.value = e instanceof Error ? e.message : '데이터를 불러오는 중 오류가 발생했습니다.'
-      console.error('[useDashboardData] API 호출 실패, Mock 데이터로 폴백:', e)
+      const classified = classifyError(e)
+      error.value = classified.userMessage
+      // 구조화된 에러 로깅: 오류 유형 · 발생 시각 · 폴백 상태 포함
+      console.error('[useDashboardData] API 호출 실패', {
+        errorType: classified.type,        // NETWORK | API | PARSE
+        message: classified.message,
+        timestamp: new Date().toISOString(),
+        fallback: 'Mock 데이터로 자동 폴백',
+        raw: e,
+      })
     } finally {
       isLoading.value = false
     }

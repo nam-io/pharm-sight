@@ -8,6 +8,28 @@ namespace PharmSight.Api.Repositories;
 /// <summary>
 /// 대시보드 통계 데이터 접근 구현체.
 /// Dapper를 통한 순수 SQL 쿼리로 PostgreSQL에서 집계 데이터를 조회합니다.
+///
+/// [ORM 선택 근거: Dapper 채택, Entity Framework Core 미사용]
+/// 이 Repository의 모든 쿼리는 읽기 전용 집계(Read-only Aggregation)입니다.
+///
+///   1. CTE 3중 구조 (WITH ... AS):
+///      LINQ로 표현 시 비최적 SQL 생성 또는 3회 이상 DB 왕복 발생.
+///      Dapper는 SQL 직접 제어로 CTE 3개를 1회 DB 왕복으로 처리합니다.
+///
+///   2. PostgreSQL 전용 함수 완전 활용:
+///      DATE_TRUNC, TO_CHAR, AGE(), EXTRACT, INTERVAL, COALESCE, CAST
+///      EF Core의 PostgreSQL 함수 번역이 불완전하여 클라이언트 사이드 처리 위험이 있습니다.
+///
+///   3. Change Tracking 오버헤드 없음:
+///      EF Core는 읽기 전용 쿼리에도 엔티티 추적 비용이 발생합니다.
+///      Dapper는 `await using var conn` 패턴으로 연결을 즉시 해제합니다.
+///
+///   4. DTO 직접 매핑:
+///      QueryAsync&lt;T&gt; 한 줄로 도메인 모델 변환 없이 DTO에 직접 매핑됩니다.
+///
+/// [의존성]
+/// NpgsqlConnection: PostgreSQL 네이티브 드라이버 (IPv4/SSL 지원)
+/// NormalizeConnectionString: Render 환경변수 URI 형식 → Npgsql 키=값 형식 자동 변환
 /// </summary>
 public class DashboardRepository : IDashboardRepository
 {
