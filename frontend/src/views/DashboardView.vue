@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, computed } from 'vue'
 import { useDashboardData } from '@/composables/useDashboardData'
+import { useAiInsight } from '@/composables/useAiInsight'
+import AiInsightPanel from '@/components/AiInsightPanel.vue'
 import SalesLineChart from '@/components/charts/SalesLineChart.vue'
 import DrugTypePieChart from '@/components/charts/DrugTypePieChart.vue'
 import PatientAgeChart from '@/components/charts/PatientAgeChart.vue'
@@ -9,6 +11,7 @@ import WholesaleBarChart from '@/components/charts/WholesaleBarChart.vue'
 import DrugCoverageChart from '@/components/charts/DrugCoverageChart.vue'
 
 const { dashboardData, kpiCards, isLoading, error, loadAll } = useDashboardData()
+const { insight, isLoading: aiLoading, error: aiError, loadInsight } = useAiInsight()
 
 // 현재 날짜 기준 표시 (예: 2026년 3월 기준)
 const currentDateLabel = computed(() => {
@@ -16,8 +19,11 @@ const currentDateLabel = computed(() => {
   return `📅 ${now.getFullYear()}년 ${now.getMonth() + 1}월 기준`
 })
 
-// 컴포넌트 마운트 시 API 데이터 로드 (VITE_API_BASE_URL 설정 시 실제 API 호출)
-onMounted(() => loadAll())
+// 대시보드 데이터와 AI 인사이트를 병렬로 로드
+onMounted(() => {
+  loadAll()
+  loadInsight()
+})
 </script>
 
 <template>
@@ -29,8 +35,8 @@ onMounted(() => loadAll())
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">P</div>
           <div>
-            <h1 class="text-lg font-bold tracking-tight">PharmSight</h1>
-            <p class="text-xs text-slate-500">약국 경영 통합 대시보드</p>
+            <h1 class="text-lg font-bold tracking-tight">PharmSight AI</h1>
+            <p class="text-xs text-slate-500">약국 경영 통합 AI 대시보드</p>
           </div>
         </div>
         <div class="flex items-center gap-4">
@@ -51,6 +57,9 @@ onMounted(() => loadAll())
     </header>
 
     <main class="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
+
+      <!-- AI 경영 인사이트 패널 -->
+      <AiInsightPanel :insight="insight" :is-loading="aiLoading" :error="aiError" />
 
       <!-- KPI 카드 -->
       <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -153,7 +162,7 @@ onMounted(() => loadAll())
     <!-- 푸터 -->
     <footer class="border-t border-slate-800 mt-8 py-4">
       <p class="text-center text-xs text-slate-600">
-        PharmSight © 2025 · 해커톤 데모 · Mock 데이터 기반
+        PharmSight AI © 2026 · Powered by Claude AI · Supabase 실데이터 연동
       </p>
     </footer>
   </div>

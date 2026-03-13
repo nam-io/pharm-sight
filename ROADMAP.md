@@ -79,6 +79,21 @@ Supabase(PostgreSQL) 실데이터 기반 Dapper API 구현, Render 배포, 프�
 
 ---
 
+### 📋 Phase 3: AI 경영 분석 기능 추가 (Sprint 3)
+**상태:** 🔄 진행 중
+
+#### 목표
+Claude AI API를 연동하여 약국 경영 데이터를 자동 분석하고, 대시보드 상단에 친절한 AI 인사이트를 표시한다.
+
+#### 작업 목록
+- [ ] **[백엔드 AI 서비스]**: `AiInsightService` — Claude API 호출, 경영 데이터 기반 요약 생성 (30분 캐시)
+- [ ] **[백엔드 컨트롤러]**: `GET /api/ai/insight` 엔드포인트
+- [ ] **[프론트엔드 패널]**: `AiInsightPanel.vue` — 요약·하이라이트·경고·추천 표시
+- [ ] **[앱 리브랜딩]**: "약국 경영 통합 AI 대시보드" 명칭 반영
+- [ ] **[Render 환경변수]**: `Anthropic__ApiKey` 등록
+
+---
+
 ## 🎯 MoSCoW 우선순위
 | 분류 | 항목 | 상태 |
 |------|------|------|
