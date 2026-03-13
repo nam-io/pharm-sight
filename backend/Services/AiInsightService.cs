@@ -147,10 +147,14 @@ public class AiInsightService : IAiInsightService
         };
 
         var response = await client.PostAsJsonAsync("https://api.anthropic.com/v1/messages", requestBody);
-        response.EnsureSuccessStatusCode();
+        var responseBody = await response.Content.ReadAsStringAsync();
 
-        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
-        return result.GetProperty("content")[0].GetProperty("text").GetString() ?? "{}";
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException(
+                $"Anthropic API {(int)response.StatusCode}: {responseBody}");
+
+        var result = JsonDocument.Parse(responseBody);
+        return result.RootElement.GetProperty("content")[0].GetProperty("text").GetString() ?? "{}";
     }
 
     /// <summary>Claude 응답 텍스트를 AiInsight 모델로 파싱합니다.</summary>
