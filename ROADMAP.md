@@ -101,8 +101,9 @@ Google Gemini API를 연동하여 약국 경영 데이터를 자동 분석하고
 xUnit 단위 테스트 및 GitHub Actions CI 파이프라인을 구축하여 해커톤 "검증 계획" 평가 기준에 대응한다.
 
 #### 작업 목록
-- [x] **[xUnit 테스트]**: `PharmSight.Tests` — DashboardService 9개 + AiInsightService 4개, 총 13개 통과
-- [x] **[CI/CD 재구성]**: `.github/workflows/ci.yml` — Python 템플릿 → .NET 9 + Vue 3 실제 파이프라인
+- [x] **[xUnit 테스트]**: `PharmSight.Tests` — Controller(9) + Service(13) + Repository(8) + Middleware(5), 총 35개 통과
+- [x] **[Vitest 테스트]**: `frontend/` — useDashboardData(7) + useAiInsight(4) + config(5), 총 16개 통과
+- [x] **[CI/CD 재구성]**: `.github/workflows/ci.yml` — 4-Job 파이프라인 (backend-test + frontend-test + e2e-smoke + deploy-verify)
 - [x] **[CLAUDE.md 현행화]**: SQLite→PostgreSQL, .NET 8→9, Gemini AI 항목 반영
 - [x] **[push 배포]**: `git push origin master` → GitHub Actions 트리거
 
@@ -114,7 +115,7 @@ xUnit 단위 테스트 및 GitHub Actions CI 파이프라인을 구축하여 해
 | **Must Have** | Phase 0, 1 완성 및 Vercel 배포 | ✅ 완료 |
 | **Should Have** | Phase 2 백엔드 API + Render/Supabase 배포 | ✅ 완료 |
 | **Could Have** | 프론트엔드-백엔드 실데이터 연동 | ✅ 완료 |
-| **Could Have** | xUnit 단위 테스트 | ✅ 완료 (13개 통과) |
+| **Could Have** | 단위 테스트 51개 (백엔드 35 + 프론트엔드 16) | ✅ 완료 |
 | **Could Have** | 기간 필터 (최근 3/6/12개월 선택) | ✅ 완료 |
 | **Could Have** | 데이터 내보내기 (CSV 다운로드) | ✅ 완료 |
 | **Won't Have** | 로그인/인증, 실시간 데이터 동기화 | — |

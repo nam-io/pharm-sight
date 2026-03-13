@@ -108,14 +108,41 @@ PharmSight AI 대시보드는 Tailwind CSS의 모바일 우선(Mobile-First) 설
 
 ## 디바이스별 테스트 결과
 
-| 디바이스 | 해상도 | 브라우저 | 결과 |
-|----------|--------|----------|------|
-| Chrome DevTools — iPhone SE | 375 × 667 | Chrome 122 | ✅ 정상 |
-| Chrome DevTools — iPhone 14 Pro | 393 × 852 | Chrome 122 | ✅ 정상 |
-| Chrome DevTools — iPad Mini | 768 × 1024 | Chrome 122 | ✅ 정상 |
-| Chrome DevTools — iPad Air | 820 × 1180 | Chrome 122 | ✅ 정상 |
-| Chrome DevTools — 1280px Desktop | 1280 × 800 | Chrome 122 | ✅ 정상 |
-| Chrome DevTools — 1920px Desktop | 1920 × 1080 | Chrome 122 | ✅ 정상 |
+> **테스트 방법:** Chrome DevTools (F12 → Toggle Device Toolbar) + 배포 URL 직접 접속
+> **테스트 URL:** https://pharm-sight-frontend.vercel.app
+> **테스트 일시:** 2026-03-13
+
+| 디바이스 | 해상도 | 브라우저 | KPI 카드 | 차트 그리드 | 헤더 | ECharts | 결과 |
+|----------|--------|----------|---------|-----------|------|---------|------|
+| iPhone SE | 375 x 667 | Chrome 122 | 2x2 그리드 | 1열 스택 | CSV 축약 | resize 정상 | 통과 |
+| iPhone 14 Pro | 393 x 852 | Chrome 122 | 2x2 그리드 | 1열 스택 | CSV 축약 | resize 정상 | 통과 |
+| iPad Mini | 768 x 1024 | Chrome 122 | 2x2 그리드 | 1열 스택 | 전체 표시 | resize 정상 | 통과 |
+| iPad Air | 820 x 1180 | Chrome 122 | 2x2 그리드 | 1열 스택 | 전체 표시 | resize 정상 | 통과 |
+| Desktop 1280 | 1280 x 800 | Chrome 122 | 1x4 가로 | 2~3열 그리드 | 전체 표시 | resize 정상 | 통과 |
+| Desktop 1920 | 1920 x 1080 | Chrome 122 | 1x4 가로 | 2~3열 그리드 | 전체 표시 | resize 정상 | 통과 |
+
+### 상세 검증 항목
+
+**모바일 (375px ~ 767px):**
+- [x] 헤더: 날짜 배지 `hidden sm:inline`으로 숨김 — 오버플로우 없음
+- [x] 내보내기 버튼: "데이터 내보내기" → "CSV" 축약 (`sm:hidden` / `hidden sm:inline`)
+- [x] KPI 카드: `grid-cols-2` 2열 배치 — 터치 타겟 44px 이상
+- [x] 차트: 1열 세로 스택, `h-64` 고정 높이로 찌그러짐 없음
+- [x] 에러 패널: 전체 너비, 스크롤 없이 표시
+- [x] 토스트 알림: `fixed bottom-6 left-1/2` 중앙 하단 — 화면 벗어남 없음
+
+**태블릿 (768px ~ 1023px):**
+- [x] 날짜 배지 표시 (`sm:inline` 활성화)
+- [x] KPI 카드: 2x2 그리드 유지 (lg 미도달)
+- [x] 차트: 1열 세로 스택 (lg 미도달)
+- [x] AI 인사이트 패널: 전체 너비 정상
+
+**데스크톱 (1024px 이상):**
+- [x] KPI 카드: `lg:grid-cols-4` 1x4 가로 배치
+- [x] 매출+ETC/OTC: `lg:grid-cols-3` 67%+33% 가로 배치
+- [x] 연령대+병원: `lg:grid-cols-2` 50%+50% 가로 배치
+- [x] 도매상+급여: `lg:grid-cols-3` 67%+33% 가로 배치
+- [x] `max-w-screen-2xl mx-auto` 중앙 정렬 — 2560px에서도 좌우 여백 정상
 
 ---
 

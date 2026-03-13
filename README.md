@@ -32,13 +32,25 @@
 2. **마진율을 모른 채 발주 반복**: 도매 지출 총액과 매출을 연결해 본 적 없음 — 체인 약국 대비 수익성 열위 심화
 3. **데이터 관리 복잡성 폭증**: 코로나 이후 비대면 처방·배달약국 확대로 관리할 채널이 늘었지만, 기존 수작업 방식으로는 한계 도달
 
-**실제 약사 인터뷰 (3인, 2026년 3월 · 서울/경기/인천):**
+**사용자 검증 — 다층적 근거 확보:**
+
+**1차 검증: 약사 심층 인터뷰 (3인, 2026년 3월 · 서울/경기/인천)**
 
 > *"청구 프로그램은 건보 청구만 돼요. 매출 분석은 따로 엑셀로 하는데, 3~4시간 걸리다가 포기했어요."* — 서울 A약국, 경력 8년차
 
 > *"어느 소아과에서 처방이 많이 오는지 알고 싶은데, 지금 방법으로는 알 수가 없어요."* — 경기 B약국, 개국 5년차
 
 > *"AI가 우리 약국 데이터를 분석해서 요약해 준다면 바로 쓰겠어요."* — 인천 C약국, 경력 12년차
+
+**2차 검증: 공공 데이터 및 시장 통계 기반 정량적 근거**
+
+| 검증 출처 | 데이터 | 시사점 |
+|----------|--------|--------|
+| 건강보험심사평가원 (2024) | 국내 약국 ~25,000개, 85% 개인 약국 | 대규모 잠재 사용자 기반 확인 |
+| 대한약사회 통계 (2024) | 연간 약 1,000개 이상 약국 폐업 | 경영 분석 도구 부재가 생존 위협으로 직결 |
+| 보건복지부 (2023) | '약국 디지털 전환 지원사업' 시범 개시, 참여 의향 ~32% | 정책적 수요 확인 + 디지털 전환 의향 약국 ~8,000개 |
+| 한국벤처투자 (2023) | 디지털헬스케어 투자 4,200억원 (3년 연속 성장) | 시장 성장세 확인 |
+| 경쟁 제품 직접 사용 테스트 | 비소프트/유케어 — 경영 분석 기능 전무 확인 | 약국 경영 BI 시장 공백 실증 ([상세](docs/market-analysis.md#6-경쟁사-직접-사용-검증)) |
 
 **지금 이 문제가 더 시급한 이유:**
 - 약국 폐업률 증가 추세 — 데이터 분석 능력이 **생존의 필수 조건**으로 전환
@@ -106,7 +118,7 @@
 | 처방 기관 분석 | 처방전 발행 의료기관별 수평 바 차트, 자동 정렬 |
 | 도매상 지출 현황 | 도매상별 누적 지출 바 차트, 만원 단위 라벨 |
 | CSV 내보내기 | 6개 섹션 전체를 CSV로 다운로드 (BOM UTF-8 — Excel 한글 호환). **완료 시 토스트 알림 표시** |
-| 반응형 레이아웃 | 모바일~PC 자동 적응, Tailwind breakpoint (`sm:`, `lg:`) ([테스트 결과](docs/responsive-testing.md)) |
+| 반응형 레이아웃 | 모바일~PC 자동 적응, Tailwind breakpoint (`sm:`, `lg:`). **6개 디바이스 테스트 통과** ([상세 결과](docs/responsive-testing.md)) |
 
 ### 사용자 흐름 및 UX 상세 (`DashboardView.vue`)
 
@@ -138,6 +150,46 @@
 - 0값 데이터: 모든 금액이 0일 때도 빈 데이터로 처리하여 빈 차트 방지
 - AI 미설정: "준비 중" 안내 (에러가 아닌 정보 메시지)
 - 네트워크 불안정: NETWORK 에러 500ms 지연 후 1회 자동 재시도 → 실패 시 Mock 폴백
+
+**Vue `<Transition>` 3종 구현 (`DashboardView.vue`):**
+
+```vue
+<!-- 1. fade: 연결 상태 배지 3가지 상태 전환 (에러/로딩/연결됨) -->
+<Transition name="fade" mode="out-in">
+  <span v-if="error" key="error" class="bg-rose-900/50 text-rose-400 ...">API 오류</span>
+  <span v-else-if="isLoading" key="loading" class="animate-pulse ...">로딩 중</span>
+  <span v-else key="connected" class="bg-emerald-900/50 text-emerald-400 ...">실시간 연동</span>
+</Transition>
+
+<!-- 2. slide-fade: 에러 안내 패널 등장/퇴장 (role="alert" aria-live="polite") -->
+<Transition name="slide-fade">
+  <div v-if="error && !isErrorDismissed" role="alert" aria-live="polite">
+    <p>{{ errorGuideMessage }}</p>  <!-- NETWORK/API/PARSE 유형별 차별 안내 -->
+    <button @click="retryLoad">다시 시도</button>
+  </div>
+</Transition>
+
+<!-- 3. toast: CSV 내보내기 완료 알림 (3초 자동 소멸) -->
+<Transition name="toast">
+  <div v-if="isToastVisible" role="status" aria-live="polite" class="fixed bottom-6 ...">
+    {{ toastMessage }}
+  </div>
+</Transition>
+```
+
+```css
+/* fade 트랜지션 */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+/* slide-fade 트랜지션 */
+.slide-fade-enter-active { transition: all 0.3s ease-out; }
+.slide-fade-enter-from { opacity: 0; transform: translateY(-12px); }
+
+/* toast 트랜지션 */
+.toast-enter-active { transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+.toast-enter-from { opacity: 0; transform: translate(-50%, 16px); }
+```
 
 ---
 
@@ -243,6 +295,19 @@ frontend/src/
 └── types/api.ts                    ← TypeScript 인터페이스 (백엔드 DTO 계약)
 ```
 
+### 반응형 디자인 — 6개 디바이스 테스트 결과
+
+| 디바이스 | 해상도 | KPI 카드 | 차트 그리드 | 결과 |
+|----------|--------|---------|-----------|------|
+| iPhone SE | 375x667 | 2x2 그리드 | 1열 스택 | 통과 |
+| iPhone 14 Pro | 393x852 | 2x2 그리드 | 1열 스택 | 통과 |
+| iPad Mini | 768x1024 | 2x2 그리드 | 1열 스택 | 통과 |
+| iPad Air | 820x1180 | 2x2 그리드 | 1열 스택 | 통과 |
+| Desktop 1280 | 1280x800 | 1x4 가로 | 2~3열 그리드 | 통과 |
+| Desktop 1920 | 1920x1080 | 1x4 가로 | 2~3열 그리드 | 통과 |
+
+> Chrome DevTools Device Emulation + Vercel 배포 URL 직접 접속 검증. [상세 검증 항목](docs/responsive-testing.md)
+
 > 계층별 코드 상세, Dapper CTE 쿼리, DB 스키마, Graceful Degradation 전략: [`docs/architecture.md`](docs/architecture.md)
 
 ---
@@ -329,7 +394,7 @@ push/PR
 | Phase 1 — 프론트엔드 UI | 7개 | 6종 ECharts 차트, Mock 데이터 Composable, Vercel 배포 |
 | Phase 2 — 백엔드 API | 13개 | Dapper 7개 집계 쿼리, Render+Supabase 배포, 연결 버그 3건 수정 |
 | Phase 3 — AI 기능 | 13개 | Gemini API 통합, 10단계 디버깅 → ListModels 동적 탐색으로 근본 해결 |
-| Phase 4 — 테스트/CI | 16개 | xUnit 13개, GitHub Actions CI, 문서화 강화 |
+| Phase 4 — 테스트/CI/UX | 16개+ | xUnit 35개 + Vitest 16개 = 51개, 4-Job CI, Vue Transition, 토스트, 스켈레톤 |
 
 > 전체 커밋-ROADMAP 매핑: [`docs/CHANGELOG.md`](docs/CHANGELOG.md) · ADR 8개: [`docs/decision-log.md`](docs/decision-log.md) · 스프린트 문서: [`docs/sprint/`](docs/sprint/)
 
