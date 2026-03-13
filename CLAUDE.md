@@ -4,8 +4,10 @@
 
 ## 1. 🛠 기술 스택 및 아키텍처 (Tech Stack)
 - **Frontend:** Vue 3 (Composition API, `<script setup>`), TypeScript, Vite, Tailwind CSS, Apache ECharts.
-- **Backend:** C# .NET Core 8.0+ (Web API).
-- **Database & ORM:** SQLite (`Microsoft.Data.Sqlite`), Dapper. (⚠️ 절대 Entity Framework를 사용하지 마세요).
+- **Backend:** C# .NET 9.0 (Web API).
+- **Database & ORM:** PostgreSQL (Supabase), Npgsql, Dapper. (⚠️ 절대 Entity Framework를 사용하지 마세요).
+- **AI:** Google Gemini API — `AiInsightService`로 경영 데이터 분석, `IMemoryCache` 30분 캐시, 동적 모델 선택(`ResolveModelNameAsync`).
+- **Infra:** Vercel (Frontend 배포) · Render (Backend 배포) · Supabase (PostgreSQL 클라우드 DB).
 - **Architecture Pattern:** Controller - Service - Repository 계층 분리를 통한 단일 책임 원칙(SRP) 준수.
 
 ## 2. 🔄 AI 에이전트 워크플로우 (AI Agent Workflow)
@@ -28,17 +30,24 @@
   - 커밋 메시지 본문에는 해당 작업이 `ROADMAP.md`의 어떤 이슈를 해결했는지 추적 가능하도록 상세히 기록합니다.
 
 ## 4. 🗄 데이터베이스 스키마 컨텍스트 (Database Schema Reference)
-통계 및 대시보드 지표 추출용 쿼리를 작성할 때 다음 SQLite 테이블 구조를 반드시 참고하세요.
+통계 및 대시보드 지표 추출용 쿼리를 작성할 때 다음 PostgreSQL(Supabase) 테이블 구조를 반드시 참고하세요.
 - `Patients` (Id, DateOfBirth)
 - `Hospitals` (Id, Name)
-- `Drugs` (Id, Name, Type [Rx/OTC], IsCovered)
+- `Drugs` (Id, Name, Type [ETC/OTC], IsCovered)
 - `Prescriptions` (Id, PatientId, HospitalId, DispenseDate)
 - `Orders` (Id, WholesaleName, DrugId, Amount, OrderDate)
 - `Sales` (Id, Amount, SaleDate, PrescriptionId [nullable])
 
+> **주의:** PostgreSQL은 `DATE_TRUNC`, `TO_CHAR`, `AGE()` 함수를 사용합니다. COUNT()는 bigint(long), ROUND()는 numeric(decimal)로 Dapper 매핑합니다.
+
 ## 5. 🧪 검증 및 CI/CD 파이프라인 (Testing & CI)
-- 백엔드 비즈니스 로직(Service 계층) 작성 시, `xUnit`을 활용하여 Repository를 Mocking하는 단위 테스트를 함께 작성합니다.
-- `.github/workflows/ci.yml` 스크립트를 통해 `dotnet test`와 프론트엔드 빌드 검증이 이루어지도록 로컬 환경을 유지합니다.
+- **단위 테스트:** `backend/PharmSight.Tests/` — `xUnit` + `Moq`로 Service 계층 테스트 (Repository Mocking). 총 13개 테스트 케이스.
+  - `DashboardServiceTests`: 7개 메서드별 동작 검증, 빈 결과 엣지 케이스 포함
+  - `AiInsightServiceTests`: API 키 미설정 Graceful Degradation, 캐시 동작 검증
+- **CI/CD:** `.github/workflows/ci.yml` — GitHub Actions로 push/PR 시 자동 실행
+  - `backend-test` job: .NET 9.0 빌드 + xUnit 단위 테스트 + TRX 결과 업로드
+  - `frontend-build` job: Node 20 + `npm ci` + Vite 프로덕션 빌드 검증
+- 로컬 테스트 실행: `cd backend && dotnet test PharmSight.Tests/`
 
 ## 6. 🧠 에이전트 메모리 관리 전략 (Agent Memory Strategy)
 본 프로젝트는 단발성 프롬프트가 아닌, 세션 간 지식 유지를 위해 영구 메모리(Persistent Memory) 전략을 사용합니다.
