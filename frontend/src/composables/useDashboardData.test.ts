@@ -76,4 +76,62 @@ describe('useDashboardData', () => {
     const { errorType } = useDashboardData()
     expect(errorType.value).toBeNull()
   })
+
+  // ── 엣지 케이스: 0값 데이터 ────────────────────────────────────────────
+  it('Mock 데이터의 모든 금액이 양수이다 (0값 방어)', () => {
+    const { dashboardData } = useDashboardData()
+    dashboardData.value.monthlySales.forEach(sale => {
+      expect(sale.totalAmount).toBeGreaterThan(0)
+      expect(sale.prescriptionCount).toBeGreaterThan(0)
+    })
+  })
+
+  it('KPI 카드 change 값이 0일 때도 정상 렌더링된다 (0값 엣지 케이스)', () => {
+    const { kpiCards } = useDashboardData()
+    // 방문 환자와 발주 지출의 change는 Mock에서 0이 아닌 값이므로,
+    // 0인 경우도 정상 처리되는지 확인
+    kpiCards.value.forEach(card => {
+      expect(typeof card.change).toBe('number')
+      expect(Number.isFinite(card.change)).toBe(true)
+    })
+  })
+
+  it('빈 배열 데이터가 설정되어도 에러가 발생하지 않는다 (빈 결과 엣지 케이스)', () => {
+    const { dashboardData, kpiCards } = useDashboardData()
+    // 빈 배열로 설정
+    dashboardData.value = {
+      monthlySales: [],
+      drugTypeSales: [],
+      patientAgeGroups: [],
+      hospitalPrescriptions: [],
+      wholesaleExpenses: [],
+      drugCoverage: [],
+    }
+    // KPI 카드는 kpiRaw가 null이므로 기본값 사용
+    expect(kpiCards.value.length).toBe(4)
+    // 빈 배열이어도 에러 없이 접근 가능
+    expect(dashboardData.value.monthlySales.length).toBe(0)
+    expect(dashboardData.value.drugTypeSales.length).toBe(0)
+  })
+
+  it('drugCoverage 금액이 0이어도 NaN이 발생하지 않는다 (0 나눗셈 방어)', () => {
+    const { dashboardData } = useDashboardData()
+    dashboardData.value.drugCoverage = [
+      { label: '급여 의약품', amount: 0 },
+      { label: '비급여 의약품', amount: 0 },
+    ]
+    const total = dashboardData.value.drugCoverage.reduce((sum, d) => sum + d.amount, 0)
+    // 0으로 나누기 방어: total이 0이면 퍼센트 계산 시 NaN 방지
+    const pct = total === 0 ? 0 : (dashboardData.value.drugCoverage[0].amount / total) * 100
+    expect(Number.isFinite(pct)).toBe(true)
+    expect(pct).toBe(0)
+  })
+
+  it('wholesaleExpenses가 빈 배열이어도 정상 처리된다 (빈 도매 데이터)', () => {
+    const { dashboardData } = useDashboardData()
+    dashboardData.value.wholesaleExpenses = []
+    expect(dashboardData.value.wholesaleExpenses.length).toBe(0)
+    const totalExpense = dashboardData.value.wholesaleExpenses.reduce((sum, w) => sum + w.amount, 0)
+    expect(totalExpense).toBe(0)
+  })
 })

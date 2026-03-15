@@ -44,4 +44,39 @@ describe('useAiInsight (Mock 모드)', () => {
     expect(result).toHaveProperty('loadInsight')
     expect(typeof result.loadInsight).toBe('function')
   })
+
+  // ── 엣지 케이스: 빈 결과 및 0값 데이터 ─────────────────────────────────
+  it('loadInsight 호출 후에도 isLoading은 false로 복원된다 (빈 결과 엣지 케이스)', async () => {
+    const { useAiInsight } = await import('./useAiInsight')
+    const { loadInsight, isLoading } = useAiInsight()
+
+    await loadInsight()
+
+    // API_BASE 미설정이므로 즉시 false로 복원
+    expect(isLoading.value).toBe(false)
+  })
+
+  it('insight가 null인 상태에서 속성 접근 시 에러가 발생하지 않는다 (null 안전성)', async () => {
+    const { useAiInsight } = await import('./useAiInsight')
+    const { insight } = useAiInsight()
+
+    expect(insight.value).toBeNull()
+    // null 안전 접근 — 옵셔널 체이닝으로 에러 없이 undefined 반환
+    expect(insight.value?.summary).toBeUndefined()
+    expect(insight.value?.highlights).toBeUndefined()
+    expect(insight.value?.warnings).toBeUndefined()
+    expect(insight.value?.recommendation).toBeUndefined()
+  })
+
+  it('error와 errorType이 동시에 null이다 (초기 상태 일관성)', async () => {
+    const { useAiInsight } = await import('./useAiInsight')
+    const { error, errorType } = useAiInsight()
+
+    // error와 errorType은 항상 동시에 null이거나 동시에 값이 설정됨
+    expect(error.value).toBeNull()
+    expect(errorType.value).toBeNull()
+    // 둘 다 null이면 일관성 통과
+    const isConsistent = (error.value === null) === (errorType.value === null)
+    expect(isConsistent).toBe(true)
+  })
 })

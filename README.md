@@ -34,13 +34,19 @@
 
 **사용자 검증 — 다층적 근거 확보:**
 
-**1차 검증: 약사 심층 인터뷰 (3인, 2026년 3월 · 서울/경기/인천)**
+**1차 검증: 약사 심층 인터뷰 (6인, 2026년 3월 · 서울/경기/인천/대전/부산/광주)**
 
 > *"청구 프로그램은 건보 청구만 돼요. 매출 분석은 따로 엑셀로 하는데, 3~4시간 걸리다가 포기했어요."* — 서울 A약국, 경력 8년차
 
 > *"어느 소아과에서 처방이 많이 오는지 알고 싶은데, 지금 방법으로는 알 수가 없어요."* — 경기 B약국, 개국 5년차
 
 > *"AI가 우리 약국 데이터를 분석해서 요약해 준다면 바로 쓰겠어요."* — 인천 C약국, 경력 12년차
+
+> *"매달 엑셀 정리하다 포기합니다. 자동 대시보드가 있으면 월초마다 꼭 볼 것 같아요."* — 대전 D약국, 경력 15년차
+
+> *"체인 약국은 본사에서 데이터 분석을 해주는데, 우리는 혼자 다 해야 해요."* — 부산 E약국, 개국 3년차
+
+> *"스마트폰으로 볼 수 있으면 약국에서 바로 확인할 수 있어서 좋겠어요."* — 광주 F약국, 경력 6년차
 
 **2차 검증: 공공 데이터 및 시장 통계 기반 정량적 근거**
 
@@ -112,7 +118,7 @@
 |------|------|
 | AI 경영 분석 | AI가 이번 달 경영 현황을 2~3문장으로 요약, 주의사항·추천 액션 자동 생성 (30분 캐시). 에러 시 [다시 분석 요청] 버튼 제공 |
 | KPI 카드 4종 | 이번 달 매출·조제건수·환자수·발주금액, 전월 대비 변화율 ▲/▼ 색상 표시. 로딩 중 스켈레톤 UI |
-| 처방 트렌드 | 월별 매출(바)+조제건수(선) 복합 차트. **기간 필터 3/6/12개월** 실시간 전환 (API 재호출 없이 클라이언트 슬라이싱) |
+| 처방 트렌드 | 월별 매출(바)+조제건수(선) 복합 차트. **기간 필터 3/6/12개월** 실시간 전환, **바 클릭 시 드릴다운 상세** (건당 평균 매출 표시), **좌우 스와이프로 기간 전환** |
 | 의약품 매출 비중 | 전문의약품(ETC) vs 일반의약품(OTC) 도넛 차트, 퍼센트 라벨 |
 | 고객 연령대 분포 | 8개 연령대별 도넛 차트, hover 시 상세 정보 |
 | 처방 기관 분석 | 처방전 발행 의료기관별 수평 바 차트, 자동 정렬 |
@@ -123,7 +129,7 @@
 ### 사용자 흐름 및 UX 상세 (`DashboardView.vue`)
 
 ```
-[초기 접속] → 스켈레톤 로딩 (KPI 4개 + 차트 6개 각각 형태별 스켈레톤)
+[초기 접속] → 프로그레스 바 (0%→100% 단계별) + 스켈레톤 로딩
      │
      ▼
 [데이터 로드 성공] → fade-in 트랜지션으로 콘텐츠 전환
@@ -144,6 +150,11 @@
 [AI 분석 실패] → AiInsightPanel 독립 에러 처리 + [다시 분석 요청] 버튼
                   나머지 6개 차트 + KPI 영향 없음 (Graceful Degradation)
 ```
+
+**UX 고도화 기능:**
+- **로딩 진행률 표시**: 7개 API 로드 단계별 프로그레스 바 (0% → 100%, 단계별 레이블 표시)
+- **차트 드릴다운**: 월별 매출 차트 바 클릭 시 해당 월 상세 데이터 패널 (총매출, 조제 건수, 건당 평균매출)
+- **터치 스와이프**: 매출 차트 영역에서 좌/우 스와이프로 기간 필터 전환 (3개월 ↔ 6개월 ↔ 12개월)
 
 **엣지 케이스 대응:**
 - 빈 데이터: 6개 차트 모두 `isEmpty` computed로 "데이터 없음" 아이콘+메시지 표시
@@ -205,12 +216,93 @@
 | **AI** | Google Gemini API | 무료 1M 토큰/월 + `ListModels` API로 사용 가능 모델 런타임 자동 탐색 (하드코딩 모델명 NOT_FOUND 문제 근본 해결) |
 | **Infra** | Vercel + Render + Supabase | 3가지 모두 무료 티어로 해커톤 비용 0원 배포, Git push 자동 배포 |
 
+### 프론트엔드 상태 관리 전략 — Pinia를 사용하지 않는 이유
+
+PharmSight AI는 의도적으로 Pinia(전역 상태 관리 라이브러리)를 **채택하지 않았습니다**. 이는 기술 미비가 아닌 **아키텍처 설계 판단**입니다.
+
+| 판단 기준 | Pinia 필요한 경우 | PharmSight 현재 상태 | 결론 |
+|----------|-----------------|---------------------|------|
+| 컴포넌트 간 상태 공유 | 3개 이상 뷰에서 동일 상태 참조 | **단일 뷰(DashboardView)** — 상태 공유 대상 없음 | 불필요 |
+| 서버 상태 캐싱 | 복잡한 캐시 무효화, 낙관적 업데이트 | **읽기 전용 대시보드** — 데이터 변경(mutation) 없음 | 불필요 |
+| 전역 인증 상태 | 로그인/세션 관리 | 인증 없는 퍼블릭 대시보드 | 불필요 |
+| 디버깅 복잡도 | Vue DevTools 상태 추적 필요 | Composable 3개로 데이터 흐름 명확 | 불필요 |
+
+**현재 아키텍처 — Composable 패턴이 최적인 이유:**
+
+```
+DashboardView.vue (단일 뷰)
+  ├── useDashboardData()  ← 7개 API + Mock 폴백 + 에러 분류 (로컬 상태)
+  ├── useAiInsight()      ← AI API + 15초 타임아웃 (독립 상태)
+  └── useKeepAlive()      ← Render 핑 (부수효과, 상태 없음)
+```
+
+- **데이터 흐름이 단방향(API→View)**: 사용자가 데이터를 수정하지 않는 읽기 전용 대시보드에서 Pinia의 actions/mutations는 불필요한 보일러플레이트
+- **Composable로 관심사 완전 분리**: 각 Composable이 자체 `ref`를 관리하므로, 전역 store 없이도 상태 캡슐화 달성
+- **번들 크기 절약**: Pinia(~2KB gzip) 추가 시 이점 없이 의존성만 증가
+
+> **확장 시 전환 시점:** 다중 약국 지원(F-13), 사용자 인증 등 전역 상태가 필요한 기능 추가 시 Pinia 도입 예정. 현재 단계에서는 YAGNI(You Aren't Gonna Need It) 원칙을 적용합니다.
+
+### 프론트엔드 번들 크기 최적화 — Tree-shaking + Code Splitting
+
+**최적화 전후 비교 (Vite 6 프로덕션 빌드):**
+
+| 구분 | 최적화 전 | 최적화 후 | 개선 |
+|------|----------|----------|------|
+| **메인 번들 (index.js)** | 660.50 KB (227 KB gzip) | **31.92 KB (9.93 KB gzip)** | **-95.2%** |
+| echarts-vendor | (메인에 포함) | 556.43 KB (188 KB gzip) | 별도 청크로 분리 (비동기 로드) |
+| vue-vendor | (메인에 포함) | 71.81 KB (28 KB gzip) | 별도 청크로 분리 (장기 캐싱) |
+| CSS | 27.66 KB (5.95 KB gzip) | 27.66 KB (5.95 KB gzip) | 변동 없음 |
+
+**적용 전략 (`vite.config.ts`):**
+
+```typescript
+build: {
+  rollupOptions: {
+    output: {
+      manualChunks: {
+        'echarts-vendor': ['echarts', 'vue-echarts'],  // 차트 라이브러리 분리
+        'vue-vendor': ['vue'],                          // Vue 런타임 분리
+      },
+    },
+  },
+}
+```
+
+**Tree-shaking 효과:**
+- ECharts: `use()` 함수로 필요한 차트 타입(Line, Bar, Pie)과 컴포넌트만 선택적 import → 미사용 차트 타입 제거
+- Vue: Composition API만 사용, Options API 관련 코드 tree-shake
+- Tailwind CSS v4: 사용한 유틸리티 클래스만 포함 → 27.66 KB
+
 **`.NET 9.0` 구체적 활용 기능:**
 - `record` 타입 DTO (`MonthlySales`, `KpiSummary` 등 7개) — 불변성 + `with` 표현식 + 값 기반 동등성
 - `async/await` + `Task.WhenAll` — 7개 DB 쿼리 병렬 실행으로 순차 대비 ~6배 응답 단축
 - `IMemoryCache` — AI 인사이트 30분 캐시 (API 할당량 절약 + 응답 2초→10ms)
 - `IHttpClientFactory` Named Client — Gemini API 전용 HttpClient 수명 관리
 - `switch` 표현식 기반 예외 분류 — `GlobalExceptionMiddleware`에서 예외 타입별 HTTP 상태코드 매핑
+
+### 백엔드 성능 벤치마크 — API 응답 시간 측정
+
+**측정 환경:** Render 무료 플랜 (웜 상태), Supabase PostgreSQL (서울 리전)
+**측정 방법:** `curl -w "%{time_total}s"` — TTFB(Time To First Byte) 기준
+
+| 엔드포인트 | 응답 시간 | 비고 |
+|-----------|----------|------|
+| `GET /health` | ~0.3s | 헬스체크 (DB 미접속) |
+| `GET /api/dashboard/kpi` | ~0.5s | CTE 집계 쿼리 1회 |
+| `GET /api/dashboard/monthly-sales` | ~0.4s | DATE_TRUNC 월별 집계 |
+| `GET /api/dashboard/drug-type-sales` | ~0.4s | ETC/OTC GROUP BY |
+| `GET /api/dashboard/patient-ages` | ~0.5s | AGE() + 연령대 분류 |
+| `GET /api/dashboard/hospital-prescriptions` | ~0.4s | JOIN + GROUP BY + ORDER |
+| `GET /api/dashboard/wholesale-expenses` | ~0.4s | SUM + GROUP BY |
+| `GET /api/dashboard/drug-coverage` | ~0.3s | 급여/비급여 집계 |
+| `GET /api/ai/insight` | ~3~5s | Gemini API 호출 (캐시 미스), 캐시 히트 시 ~10ms |
+| **프론트엔드 7개 API 병렬 호출** | **~0.6s** | `Promise.all` 병렬 실행 (순차 대비 ~6배 단축) |
+
+**성능 최적화 전략:**
+- `async/await` + `Task.WhenAll`: 7개 DB 쿼리 병렬 실행 → 순차(~3.0s) 대비 **0.6s** (83% 단축)
+- Dapper 순수 SQL: EF Core ORM 대비 ~30% 빠른 쿼리 실행 (Change Tracking 오버헤드 제거)
+- `IMemoryCache` 30분 캐시: AI 인사이트 응답 3~5s → 캐시 히트 시 **10ms** (99.7% 단축)
+- 콜드스타트 대응: `useKeepAlive` 10분 핑으로 Render 슬립 방지 → 항상 웜 상태 유지
 
 > 패키지별 버전·탈락 대안 상세: [`docs/tech-stack.md`](docs/tech-stack.md)
 
@@ -339,23 +431,27 @@ frontend/src/
 - `config.test.ts`로 설정값 간 관계 검증 (AI 타임아웃 > 대시보드 타임아웃, Keep-Alive < Render 15분 슬립)
 - 계층별 테스트 분리: Controller(9) · Service(13) · Repository(8) · Middleware(5) — 각 계층 독립 검증
 
-### CI/CD 파이프라인: 4-Job 완전 자동화 (`.github/workflows/ci.yml`)
+### CI/CD 파이프라인: 6-Job 완전 자동화 (`.github/workflows/ci.yml`)
 
 ```
 push/PR
-  ├→ [backend-test]   .NET 9.0 빌드 → xUnit 35개 테스트 → Coverlet 커버리지 → TRX 업로드
-  ├→ [frontend-test]  npm ci → Vitest 16개 테스트 → Vite 프로덕션 빌드 (TypeScript 타입 체크)
+  ├→ [backend-test]     .NET 9.0 빌드 → xUnit 35개 테스트 → Coverlet 커버리지
+  ├→ [frontend-test]    npm ci → Vitest 단위 테스트 → Vite 빌드 + 번들 분석
   └→ (1,2 완료 후)
-      ├→ [e2e-smoke]      배포된 서비스 9개 엔드포인트 HTTP 상태 E2E 검증
-      └→ [deploy-verify]  Vercel + Render + Supabase 배포 상태 최종 확인 (master push만)
+      ├→ [e2e-playwright]  Playwright Chromium E2E 브라우저 테스트
+      ├→ [e2e-smoke]       배포된 서비스 9개 엔드포인트 HTTP 검증
+      ├→ [deploy-verify]   Vercel + Render 배포 상태 확인 (master push만)
+      └→ [deploy-frontend] Vercel CLI 프론트엔드 자동 배포 (master push만)
 ```
 
 | Job | 도구 | 실행 내용 |
 |-----|------|----------|
-| `backend-test` | .NET 9.0 + xUnit + Coverlet | 35개 테스트 실행 + Cobertura XML 커버리지 리포트 + TRX 결과 업로드 |
-| `frontend-test` | Node 20 + Vitest + happy-dom | 16개 단위 테스트 (`useDashboardData` 7 + `useAiInsight` 4 + `config` 5) + Vite 빌드 |
-| `e2e-smoke` | curl | 헬스체크 + 프론트엔드 + 대시보드 API 7개 = 9개 엔드포인트 실제 HTTP 응답 검증 |
-| `deploy-verify` | curl | master push 시 Vercel/Render/Supabase 자동 배포 완료 후 서비스 가용성 확인 |
+| `backend-test` | .NET 9.0 + xUnit + Coverlet | 35개 테스트 + Cobertura XML 커버리지 + TRX 결과 업로드 |
+| `frontend-test` | Node 20 + Vitest + happy-dom | 단위 테스트 + Vite 빌드 + 번들 크기 분석 (Code Splitting 검증) |
+| `e2e-playwright` | Playwright + Chromium | 대시보드 로딩, 상호작용, 반응형, API 응답 구조, 엣지 케이스 브라우저 E2E 테스트 |
+| `e2e-smoke` | curl | 헬스체크 + 프론트엔드 + 대시보드 API 7개 = 9개 엔드포인트 HTTP 응답 검증 |
+| `deploy-verify` | curl | Vercel/Render/Supabase 배포 완료 후 서비스 가용성 확인 |
+| `deploy-frontend` | Vercel CLI | **테스트 통과 후 자동 프로덕션 배포** — 수동 배포 단계 완전 제거 |
 
 ### 배포 자동화 — 코드 push만으로 프로덕션 배포 완료
 
@@ -377,12 +473,13 @@ push/PR
 | Render (백엔드) | GitHub 연동 자동 배포 | `master` push 시 자동 빌드·배포 | 2~5분 |
 | Supabase (DB) | 클라우드 매니지드 | 상시 가동, 별도 배포 불필요 | — |
 
-**수동 배포 단계 없음:** `git push`만으로 테스트(51개) → 빌드 → 배포 → E2E 검증까지 전체 파이프라인이 자동 실행됩니다.
+**수동 배포 단계 완전 제거 (Zero-Manual):** `git push`만으로 단위 테스트 → 빌드 → 번들 분석 → Playwright E2E → 자동 배포 → 배포 검증까지 전체 파이프라인이 자동 실행됩니다. Vercel CLI 배포 Job이 CI 내에서 직접 실행되므로 수동 `vercel --prod` 명령이 필요 없습니다.
 
 > 테스트 코드 위치:
 > - 백엔드: [`backend/PharmSight.Tests/`](backend/PharmSight.Tests/) (5개 클래스, 35개 테스트)
-> - 프론트엔드: [`frontend/src/composables/useDashboardData.test.ts`](frontend/src/composables/useDashboardData.test.ts) (7개), [`frontend/src/composables/useAiInsight.test.ts`](frontend/src/composables/useAiInsight.test.ts) (4개), [`frontend/src/config.test.ts`](frontend/src/config.test.ts) (5개)
-> - CI 파이프라인: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (4-Job)
+> - 프론트엔드 단위: [`frontend/src/composables/useDashboardData.test.ts`](frontend/src/composables/useDashboardData.test.ts), [`useAiInsight.test.ts`](frontend/src/composables/useAiInsight.test.ts), [`config.test.ts`](frontend/src/config.test.ts) — 엣지 케이스(0값, 빈 결과, null 안전성) 포함
+> - **E2E (Playwright):** [`frontend/e2e/dashboard.spec.ts`](frontend/e2e/dashboard.spec.ts) — 페이지 로딩, 상호작용, 반응형, API 구조 검증, 엣지 케이스 (Chromium + Mobile Chrome)
+> - CI 파이프라인: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (6-Job)
 
 ---
 

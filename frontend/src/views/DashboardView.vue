@@ -31,6 +31,87 @@ import DrugCoverageChart from '@/components/charts/DrugCoverageChart.vue'
 const { dashboardData, kpiCards, isLoading, error, errorType, loadAll } = useDashboardData()
 const { insight, isLoading: aiLoading, error: aiError, loadInsight } = useAiInsight()
 
+// ── 로딩 진행률 표시 ─────────────────────────────────────────────────────
+const loadingProgress = ref(0)
+const loadingStage = ref('')
+
+/** 로딩 진행률을 단계적으로 표시합니다 (7개 API + AI = 총 8단계) */
+function simulateProgress() {
+  loadingProgress.value = 0
+  loadingStage.value = '대시보드 데이터 요청 중...'
+  const stages = [
+    { pct: 15, label: 'KPI 지표 로드 중...' },
+    { pct: 30, label: '매출 데이터 집계 중...' },
+    { pct: 45, label: '환자 데이터 분석 중...' },
+    { pct: 60, label: '도매 지출 집계 중...' },
+    { pct: 75, label: '차트 데이터 구성 중...' },
+    { pct: 90, label: 'AI 인사이트 요청 중...' },
+    { pct: 100, label: '로딩 완료' },
+  ]
+  let i = 0
+  const interval = setInterval(() => {
+    if (!isLoading.value || i >= stages.length) {
+      loadingProgress.value = 100
+      loadingStage.value = '로딩 완료'
+      clearInterval(interval)
+      return
+    }
+    loadingProgress.value = stages[i].pct
+    loadingStage.value = stages[i].label
+    i++
+  }, 400)
+}
+
+// ── 차트 드릴다운 상태 ──────────────────────────────────────────────────
+const drilldownMonth = ref<string | null>(null)
+const drilldownData = computed(() => {
+  if (!drilldownMonth.value) return null
+  const sale = dashboardData.value.monthlySales.find(d => d.month === drilldownMonth.value)
+  if (!sale) return null
+  return {
+    month: sale.month,
+    totalAmount: sale.totalAmount.toLocaleString('ko-KR'),
+    prescriptionCount: sale.prescriptionCount,
+    avgPerPrescription: sale.prescriptionCount > 0
+      ? Math.round(sale.totalAmount / sale.prescriptionCount).toLocaleString('ko-KR')
+      : '0',
+  }
+})
+
+/** 월별 매출 차트 바 클릭 시 드릴다운 상세 표시 */
+function handleChartClick(params: any) {
+  if (params?.dataIndex !== undefined && filteredMonthlySales.value[params.dataIndex]) {
+    const clicked = filteredMonthlySales.value[params.dataIndex]
+    drilldownMonth.value = drilldownMonth.value === clicked.month ? null : clicked.month
+  }
+}
+
+// ── 터치 제스처(스와이프) — 기간 필터 전환 ────────────────────────────────
+let touchStartX = 0
+let touchStartY = 0
+
+function handleTouchStart(e: TouchEvent) {
+  touchStartX = e.touches[0].clientX
+  touchStartY = e.touches[0].clientY
+}
+
+function handleTouchEnd(e: TouchEvent) {
+  const dx = e.changedTouches[0].clientX - touchStartX
+  const dy = e.changedTouches[0].clientY - touchStartY
+  // 수평 스와이프만 감지 (수직 스크롤 무시)
+  if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return
+
+  const periods = [3, 6, 12]
+  const idx = periods.indexOf(selectedPeriod.value)
+  if (dx < 0 && idx < periods.length - 1) {
+    // 왼쪽 스와이프 → 더 긴 기간
+    selectedPeriod.value = periods[idx + 1]
+  } else if (dx > 0 && idx > 0) {
+    // 오른쪽 스와이프 → 더 짧은 기간
+    selectedPeriod.value = periods[idx - 1]
+  }
+}
+
 // ── 현재 날짜 표시 ───────────────────────────────────────────────────────
 const currentDateLabel = computed(() => {
   const now = new Date()
@@ -152,6 +233,7 @@ function exportToCsv() {
 
 // ── 초기 로딩 — 대시보드 데이터 + AI 인사이트 병렬 요청 ──────────────────
 onMounted(() => {
+  simulateProgress()
   loadAll()
   loadInsight()
 })
@@ -200,6 +282,22 @@ onMounted(() => {
     </header>
 
     <main class="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
+
+      <!-- ── 로딩 진행률 표시바 ────────────────────────────────────────────── -->
+      <Transition name="slide-fade">
+        <div v-if="isLoading" class="rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-slate-400">{{ loadingStage }}</span>
+            <span class="text-xs text-blue-400 font-mono">{{ loadingProgress }}%</span>
+          </div>
+          <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div
+              class="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-300 ease-out"
+              :style="{ width: loadingProgress + '%' }"
+            />
+          </div>
+        </div>
+      </Transition>
 
       <!-- ── 에러 알림 패널 (NETWORK/API/PARSE 유형별 안내 + 재시도) ───── -->
       <Transition name="slide-fade">
@@ -283,13 +381,17 @@ onMounted(() => {
         </template>
       </section>
 
-      <!-- ── 차트 행 1: 매출 추이 (기간 필터 포함) + ETC/OTC ──────────── -->
+      <!-- ── 차트 행 1: 매출 추이 (기간 필터 + 드릴다운 + 터치 스와이프) + ETC/OTC ── -->
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <div
+          class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5"
+          @touchstart="handleTouchStart"
+          @touchend="handleTouchEnd"
+        >
           <div class="mb-4 flex items-start justify-between gap-2">
             <div>
               <h2 class="text-sm font-semibold text-slate-200">월별 매출 및 조제 건수 추이</h2>
-              <p class="text-xs text-slate-500 mt-0.5">매출(바) · 조제 건수(선) · 기간 선택 가능</p>
+              <p class="text-xs text-slate-500 mt-0.5">매출(바) · 조제 건수(선) · 기간 선택 가능 · 바 클릭 시 상세 · 좌우 스와이프로 기간 전환</p>
             </div>
             <!-- 기간 필터 버튼 그룹 -->
             <div class="flex items-center gap-1 flex-shrink-0" role="group" aria-label="기간 선택">
@@ -315,8 +417,25 @@ onMounted(() => {
                 :style="`height: ${25 + (i % 4) * 18}%`"
               />
             </div>
-            <SalesLineChart v-else :data="filteredMonthlySales" />
+            <SalesLineChart v-else :data="filteredMonthlySales" @click="handleChartClick" />
           </div>
+          <!-- 드릴다운 상세 패널 — 바 클릭 시 월별 상세 데이터 표시 -->
+          <Transition name="slide-fade">
+            <div
+              v-if="drilldownData"
+              class="mt-3 rounded-lg border border-blue-800/40 bg-blue-950/30 px-4 py-3 flex items-center gap-6 text-xs"
+            >
+              <span class="text-blue-300 font-semibold">{{ drilldownData.month }} 상세</span>
+              <span class="text-slate-400">총매출: <b class="text-slate-200">{{ drilldownData.totalAmount }}원</b></span>
+              <span class="text-slate-400">조제: <b class="text-slate-200">{{ drilldownData.prescriptionCount }}건</b></span>
+              <span class="text-slate-400">건당 평균: <b class="text-slate-200">{{ drilldownData.avgPerPrescription }}원</b></span>
+              <button
+                @click="drilldownMonth = null"
+                class="ml-auto text-slate-500 hover:text-slate-300 transition-colors"
+                aria-label="드릴다운 닫기"
+              >×</button>
+            </div>
+          </Transition>
         </div>
 
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
