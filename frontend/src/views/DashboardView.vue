@@ -240,31 +240,31 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-950 text-slate-100">
+  <div class="min-h-screen bg-[#F1F2F5] text-[#131313]" style="font-family: 'Spoqa Han Sans Neo', 'Apple SD Gothic Neo', sans-serif;">
 
     <!-- ── 헤더 (sticky) ────────────────────────────────────────────────── -->
-    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
+    <header class="border-b border-[#DDDDDD] bg-white sticky top-0 z-10 shadow-sm">
       <div class="max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">P</div>
+          <div class="w-8 h-8 rounded-lg bg-[#396EFF] flex items-center justify-center text-white font-bold text-sm">P</div>
           <div>
-            <h1 class="text-lg font-bold tracking-tight">PharmSight AI</h1>
-            <p class="text-xs text-slate-500">약국 경영 통합 AI 대시보드</p>
+            <h1 class="text-lg font-bold tracking-tight text-[#131313]">PharmSight AI</h1>
+            <p class="text-xs text-[#777777]">약국 경영 통합 AI 대시보드</p>
           </div>
         </div>
         <div class="flex items-center gap-2 sm:gap-4">
-          <span class="hidden sm:inline text-xs text-slate-500 bg-slate-800 px-3 py-1.5 rounded-full">
+          <span class="hidden sm:inline text-xs text-[#777777] bg-[#F4F5F7] px-3 py-1.5 rounded-full">
             {{ currentDateLabel }} · Supabase 연동
           </span>
           <!-- 연결 상태 배지 — 3가지 상태 시각화 -->
           <Transition name="fade" mode="out-in">
-            <span v-if="error" key="error" class="text-xs bg-rose-900/50 text-rose-400 border border-rose-800 px-3 py-1.5 rounded-full">
+            <span v-if="error" key="error" class="text-xs bg-[#FFF0F0] text-[#F1636F] border border-[#F1636F]/40 px-3 py-1.5 rounded-full">
               ⚠ API 오류 · 샘플 데이터
             </span>
-            <span v-else-if="isLoading" key="loading" class="text-xs bg-slate-800 text-slate-400 border border-slate-700 px-3 py-1.5 rounded-full animate-pulse">
+            <span v-else-if="isLoading" key="loading" class="text-xs bg-[#F4F5F7] text-[#777777] border border-[#DDDDDD] px-3 py-1.5 rounded-full animate-pulse">
               ⟳ 데이터 로딩 중...
             </span>
-            <span v-else key="connected" class="text-xs bg-emerald-900/50 text-emerald-400 border border-emerald-800 px-3 py-1.5 rounded-full">
+            <span v-else key="connected" class="text-xs bg-[#F0FFF4] text-[#28A745] border border-[#28A745]/40 px-3 py-1.5 rounded-full">
               ● 실시간 연동
             </span>
           </Transition>
@@ -272,7 +272,7 @@ onMounted(() => {
           <button
             @click="exportToCsv"
             :disabled="isLoading"
-            class="flex items-center gap-1.5 text-xs bg-blue-900/40 hover:bg-blue-800/60 text-blue-400 border border-blue-800 hover:border-blue-600 px-3 py-1.5 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            class="flex items-center gap-1.5 text-xs bg-[#EEF3FF] hover:bg-[#396EFF] hover:text-white text-[#396EFF] border border-[#396EFF]/40 hover:border-[#396EFF] px-3 py-1.5 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             title="현재 대시보드 데이터를 CSV 파일로 내보냅니다"
           >
             ⬇ <span class="hidden sm:inline">데이터 내보내기</span><span class="sm:hidden">CSV</span>
@@ -285,13 +285,13 @@ onMounted(() => {
 
       <!-- ── 로딩 진행률 표시바 (ARIA: progressbar + aria-valuenow) ──────── -->
       <Transition name="slide-fade">
-        <div v-if="isLoading" class="rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-3" aria-busy="true">
+        <div v-if="isLoading" class="rounded-xl border border-[#DDDDDD] bg-white shadow-sm px-5 py-3" aria-busy="true">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-slate-400" aria-live="polite">{{ loadingStage }}</span>
-            <span class="text-xs text-blue-400 font-mono">{{ loadingProgress }}%</span>
+            <span class="text-xs text-[#555555]" aria-live="polite">{{ loadingStage }}</span>
+            <span class="text-xs text-[#396EFF] font-mono">{{ loadingProgress }}%</span>
           </div>
           <div
-            class="h-1.5 bg-slate-800 rounded-full overflow-hidden"
+            class="h-1.5 bg-[#F4F5F7] rounded-full overflow-hidden"
             role="progressbar"
             :aria-valuenow="loadingProgress"
             aria-valuemin="0"
@@ -299,7 +299,7 @@ onMounted(() => {
             :aria-label="`데이터 로딩 진행률 ${loadingProgress}%`"
           >
             <div
-              class="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-300 ease-out"
+              class="h-full bg-[#396EFF] rounded-full transition-all duration-300 ease-out"
               :style="{ width: loadingProgress + '%' }"
             />
           </div>
@@ -310,16 +310,16 @@ onMounted(() => {
       <Transition name="slide-fade">
         <div
           v-if="error && !isErrorDismissed"
-          class="flex items-start gap-4 rounded-xl border border-rose-800/50 bg-rose-950/30 px-5 py-4"
+          class="flex items-start gap-4 rounded-xl border border-[#F1636F]/30 bg-[#FFF5F5] px-5 py-4"
           role="alert"
           aria-live="polite"
         >
           <span class="mt-0.5 flex-shrink-0 text-xl">⚠️</span>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-rose-300">실시간 데이터 연결 실패</p>
-            <p class="mt-1 text-xs text-rose-400">{{ error }}</p>
-            <p class="mt-1 text-xs text-slate-400">{{ errorGuideMessage }}</p>
-            <p class="mt-2 text-xs text-slate-500">
+            <p class="text-sm font-semibold text-[#F1636F]">실시간 데이터 연결 실패</p>
+            <p class="mt-1 text-xs text-[#F1636F]">{{ error }}</p>
+            <p class="mt-1 text-xs text-[#555555]">{{ errorGuideMessage }}</p>
+            <p class="mt-2 text-xs text-[#777777]">
               💡 현재 샘플 데이터가 표시되고 있습니다. 실제 약국 데이터를 보려면 아래 버튼을 클릭하세요.
             </p>
           </div>
@@ -327,13 +327,13 @@ onMounted(() => {
             <button
               @click="retryLoad"
               :disabled="isLoading"
-              class="text-xs bg-rose-900/40 hover:bg-rose-800/60 text-rose-300 border border-rose-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+              class="text-xs bg-[#F1636F] hover:bg-[#d9525e] text-white border border-[#F1636F] px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
             >
               {{ isLoading ? '로딩 중...' : '다시 시도' }}
             </button>
             <button
               @click="isErrorDismissed = true"
-              class="text-slate-600 hover:text-slate-400 transition-colors text-lg leading-none"
+              class="text-[#999999] hover:text-[#555555] transition-colors text-lg leading-none"
               aria-label="알림 닫기"
             >
               ×
@@ -351,38 +351,38 @@ onMounted(() => {
           <div
             v-for="i in 4"
             :key="`kpi-skeleton-${i}`"
-            class="animate-pulse bg-slate-900 border border-slate-800 rounded-xl p-5"
+            class="animate-pulse bg-white border border-[#DDDDDD] rounded-xl p-5 shadow-sm"
           >
             <div class="flex items-start justify-between mb-3">
-              <div class="h-3 w-24 rounded bg-slate-700" />
-              <div class="h-6 w-6 rounded-full bg-slate-700" />
+              <div class="h-3 w-24 rounded bg-[#E8E8E8]" />
+              <div class="h-6 w-6 rounded-full bg-[#E8E8E8]" />
             </div>
-            <div class="h-8 w-28 rounded bg-slate-700 mb-2" />
-            <div class="h-3 w-20 rounded bg-slate-800" />
+            <div class="h-8 w-28 rounded bg-[#E8E8E8] mb-2" />
+            <div class="h-3 w-20 rounded bg-[#F0F0F0]" />
           </div>
         </template>
         <template v-else>
           <div
             v-for="card in kpiCards"
             :key="card.title"
-            class="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-all duration-300"
+            class="bg-white border border-[#DDDDDD] rounded-xl p-5 shadow-sm hover:shadow-md hover:border-[#396EFF]/30 transition-all duration-300"
           >
             <div class="flex items-start justify-between mb-3">
-              <p class="text-xs text-slate-500 font-medium">{{ card.title }}</p>
+              <p class="text-xs text-[#777777] font-medium">{{ card.title }}</p>
               <span class="text-xl">{{ card.icon }}</span>
             </div>
             <div class="flex items-end gap-1">
-              <span class="text-2xl font-bold text-slate-100">{{ card.value }}</span>
-              <span class="text-sm text-slate-400 mb-0.5">{{ card.unit }}</span>
+              <span class="text-2xl font-bold text-[#131313]">{{ card.value }}</span>
+              <span class="text-sm text-[#555555] mb-0.5">{{ card.unit }}</span>
             </div>
             <div class="mt-2 flex items-center gap-1">
               <span
                 class="text-xs font-medium"
-                :class="card.change >= 0 ? 'text-emerald-400' : 'text-rose-400'"
+                :class="card.change >= 0 ? 'text-[#28A745]' : 'text-[#F1636F]'"
               >
                 {{ card.change >= 0 ? '▲' : '▼' }} {{ Math.abs(card.change) }}%
               </span>
-              <span class="text-xs text-slate-600">전월 대비</span>
+              <span class="text-xs text-[#999999]">전월 대비</span>
             </div>
           </div>
         </template>
@@ -391,14 +391,14 @@ onMounted(() => {
       <!-- ── 차트 행 1: 매출 추이 (기간 필터 + 드릴다운 + 터치 스와이프) + ETC/OTC ── -->
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-4" aria-label="매출 분석 차트">
         <div
-          class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5"
+          class="lg:col-span-2 bg-white border border-[#DDDDDD] rounded-xl p-5 shadow-sm"
           @touchstart="handleTouchStart"
           @touchend="handleTouchEnd"
         >
           <div class="mb-4 flex items-start justify-between gap-2">
             <div>
-              <h2 class="text-sm font-semibold text-slate-200">월별 매출 및 조제 건수 추이</h2>
-              <p class="text-xs text-slate-500 mt-0.5">매출(바) · 조제 건수(선) · 기간 선택 가능 · 바 클릭 시 상세 · 좌우 스와이프로 기간 전환</p>
+              <h2 class="text-sm font-semibold text-[#131313]">월별 매출 및 조제 건수 추이</h2>
+              <p class="text-xs text-[#777777] mt-0.5">매출(바) · 조제 건수(선) · 기간 선택 가능 · 바 클릭 시 상세 · 좌우 스와이프로 기간 전환</p>
             </div>
             <!-- 기간 필터 버튼 그룹 -->
             <div class="flex items-center gap-1 flex-shrink-0" role="group" aria-label="기간 선택">
@@ -408,8 +408,8 @@ onMounted(() => {
                 @click="selectedPeriod = opt.value"
                 class="text-xs px-2.5 py-1 rounded transition-all duration-200"
                 :class="selectedPeriod === opt.value
-                  ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'"
+                  ? 'bg-[#396EFF] text-white shadow-sm shadow-[#396EFF]/30'
+                  : 'bg-[#F4F5F7] text-[#555555] hover:bg-[#E8E8E8] hover:text-[#343434]'"
                 :aria-pressed="selectedPeriod === opt.value"
               >
                 {{ opt.label }}
@@ -417,10 +417,10 @@ onMounted(() => {
             </div>
           </div>
           <div class="h-64">
-            <div v-if="isLoading" class="animate-pulse h-full rounded-lg bg-slate-800/50 flex items-end gap-1 px-4 pb-4 pt-2">
+            <div v-if="isLoading" class="animate-pulse h-full rounded-lg bg-[#F4F5F7] flex items-end gap-1 px-4 pb-4 pt-2">
               <div
                 v-for="i in 8" :key="i"
-                class="flex-1 rounded-t bg-slate-700"
+                class="flex-1 rounded-t bg-[#E0E0E0]"
                 :style="`height: ${25 + (i % 4) * 18}%`"
               />
             </div>
@@ -430,29 +430,29 @@ onMounted(() => {
           <Transition name="slide-fade">
             <div
               v-if="drilldownData"
-              class="mt-3 rounded-lg border border-blue-800/40 bg-blue-950/30 px-4 py-3 flex items-center gap-6 text-xs"
+              class="mt-3 rounded-lg border border-[#396EFF]/20 bg-[#EEF3FF] px-4 py-3 flex items-center gap-6 text-xs"
             >
-              <span class="text-blue-300 font-semibold">{{ drilldownData.month }} 상세</span>
-              <span class="text-slate-400">총매출: <b class="text-slate-200">{{ drilldownData.totalAmount }}원</b></span>
-              <span class="text-slate-400">조제: <b class="text-slate-200">{{ drilldownData.prescriptionCount }}건</b></span>
-              <span class="text-slate-400">건당 평균: <b class="text-slate-200">{{ drilldownData.avgPerPrescription }}원</b></span>
+              <span class="text-[#396EFF] font-semibold">{{ drilldownData.month }} 상세</span>
+              <span class="text-[#777777]">총매출: <b class="text-[#131313]">{{ drilldownData.totalAmount }}원</b></span>
+              <span class="text-[#777777]">조제: <b class="text-[#131313]">{{ drilldownData.prescriptionCount }}건</b></span>
+              <span class="text-[#777777]">건당 평균: <b class="text-[#131313]">{{ drilldownData.avgPerPrescription }}원</b></span>
               <button
                 @click="drilldownMonth = null"
-                class="ml-auto text-slate-500 hover:text-slate-300 transition-colors"
+                class="ml-auto text-[#999999] hover:text-[#555555] transition-colors"
                 aria-label="드릴다운 닫기"
               >×</button>
             </div>
           </Transition>
         </div>
 
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <div class="bg-white border border-[#DDDDDD] rounded-xl p-5 shadow-sm">
           <div class="mb-4">
-            <h2 class="text-sm font-semibold text-slate-200">ETC vs OTC 매출 비중</h2>
-            <p class="text-xs text-slate-500 mt-0.5">전문의약품(ETC) vs 일반의약품(OTC)</p>
+            <h2 class="text-sm font-semibold text-[#131313]">ETC vs OTC 매출 비중</h2>
+            <p class="text-xs text-[#777777] mt-0.5">전문의약품(ETC) vs 일반의약품(OTC)</p>
           </div>
           <div class="h-64">
             <div v-if="isLoading" class="animate-pulse h-full flex items-center justify-center">
-              <div class="w-40 h-40 rounded-full bg-slate-800 border-8 border-slate-700" />
+              <div class="w-40 h-40 rounded-full bg-[#E8E8E8] border-8 border-[#F0F0F0]" />
             </div>
             <DrugTypePieChart v-else :data="dashboardData.drugTypeSales" />
           </div>
@@ -461,27 +461,27 @@ onMounted(() => {
 
       <!-- ── 차트 행 2: 연령대 분포 + 처방 기관 TOP 6 ─────────────────── -->
       <section class="grid grid-cols-1 lg:grid-cols-2 gap-4" aria-label="환자 및 처방 분석">
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <div class="bg-white border border-[#DDDDDD] rounded-xl p-5 shadow-sm">
           <div class="mb-4">
-            <h2 class="text-sm font-semibold text-slate-200">방문 환자 연령대 분포</h2>
-            <p class="text-xs text-slate-500 mt-0.5">연령대별 내원 환자 수</p>
+            <h2 class="text-sm font-semibold text-[#131313]">방문 환자 연령대 분포</h2>
+            <p class="text-xs text-[#777777] mt-0.5">연령대별 내원 환자 수</p>
           </div>
           <div class="h-64">
             <div v-if="isLoading" class="animate-pulse h-full flex items-end gap-2 pb-4">
-              <div v-for="i in 8" :key="i" class="flex-1 rounded-t bg-slate-800" :style="`height: ${15 + i * 9}%`" />
+              <div v-for="i in 8" :key="i" class="flex-1 rounded-t bg-[#F0F0F0]" :style="`height: ${15 + i * 9}%`" />
             </div>
             <PatientAgeChart v-else :data="dashboardData.patientAgeGroups" />
           </div>
         </div>
 
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <div class="bg-white border border-[#DDDDDD] rounded-xl p-5 shadow-sm">
           <div class="mb-4">
-            <h2 class="text-sm font-semibold text-slate-200">처방전 발행 의료기관 TOP 6</h2>
-            <p class="text-xs text-slate-500 mt-0.5">기관별 처방전 유입 건수</p>
+            <h2 class="text-sm font-semibold text-[#131313]">처방전 발행 의료기관 TOP 6</h2>
+            <p class="text-xs text-[#777777] mt-0.5">기관별 처방전 유입 건수</p>
           </div>
           <div class="h-64">
             <div v-if="isLoading" class="animate-pulse h-full flex items-end gap-2 pb-4">
-              <div v-for="i in 6" :key="i" class="flex-1 rounded-t bg-slate-800" :style="`height: ${35 + (6 - i) * 11}%`" />
+              <div v-for="i in 6" :key="i" class="flex-1 rounded-t bg-[#F0F0F0]" :style="`height: ${35 + (6 - i) * 11}%`" />
             </div>
             <HospitalBarChart v-else :data="dashboardData.hospitalPrescriptions" />
           </div>
@@ -490,27 +490,27 @@ onMounted(() => {
 
       <!-- ── 차트 행 3: 도매상 지출 + 급여/비급여 ─────────────────────── -->
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-4" aria-label="지출 구조 분석">
-        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <div class="lg:col-span-2 bg-white border border-[#DDDDDD] rounded-xl p-5 shadow-sm">
           <div class="mb-4">
-            <h2 class="text-sm font-semibold text-slate-200">도매상별 누적 지출 현황</h2>
-            <p class="text-xs text-slate-500 mt-0.5">거래 도매상별 의약품 발주 지출액</p>
+            <h2 class="text-sm font-semibold text-[#131313]">도매상별 누적 지출 현황</h2>
+            <p class="text-xs text-[#777777] mt-0.5">거래 도매상별 의약품 발주 지출액</p>
           </div>
           <div class="h-64">
             <div v-if="isLoading" class="animate-pulse h-full flex items-end gap-2 pb-4">
-              <div v-for="i in 5" :key="i" class="flex-1 rounded-t bg-slate-800" :style="`height: ${25 + (5 - i) * 13}%`" />
+              <div v-for="i in 5" :key="i" class="flex-1 rounded-t bg-[#F0F0F0]" :style="`height: ${25 + (5 - i) * 13}%`" />
             </div>
             <WholesaleBarChart v-else :data="dashboardData.wholesaleExpenses" />
           </div>
         </div>
 
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <div class="bg-white border border-[#DDDDDD] rounded-xl p-5 shadow-sm">
           <div class="mb-4">
-            <h2 class="text-sm font-semibold text-slate-200">급여 · 비급여 지출 비율</h2>
-            <p class="text-xs text-slate-500 mt-0.5">건강보험 적용 여부별 지출</p>
+            <h2 class="text-sm font-semibold text-[#131313]">급여 · 비급여 지출 비율</h2>
+            <p class="text-xs text-[#777777] mt-0.5">건강보험 적용 여부별 지출</p>
           </div>
           <div class="h-64">
             <div v-if="isLoading" class="animate-pulse h-full flex items-center justify-center">
-              <div class="w-40 h-40 rounded-full bg-slate-800 border-8 border-slate-700" />
+              <div class="w-40 h-40 rounded-full bg-[#E8E8E8] border-8 border-[#F0F0F0]" />
             </div>
             <DrugCoverageChart v-else :data="dashboardData.drugCoverage" />
           </div>
@@ -520,8 +520,8 @@ onMounted(() => {
     </main>
 
     <!-- ── 푸터 ───────────────────────────────────────────────────────────── -->
-    <footer class="border-t border-slate-800 mt-8 py-4">
-      <p class="text-center text-xs text-slate-600">
+    <footer class="border-t border-[#DDDDDD] mt-8 py-4">
+      <p class="text-center text-xs text-[#999999]">
         PharmSight AI © 2026 · Powered by Google Gemini AI · Supabase 실데이터 연동
       </p>
     </footer>
@@ -530,7 +530,7 @@ onMounted(() => {
     <Transition name="toast">
       <div
         v-if="isToastVisible"
-        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-emerald-900/90 border border-emerald-700 text-emerald-200 text-sm px-5 py-3 rounded-xl shadow-lg backdrop-blur"
+        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#396EFF] border border-[#2d5de0] text-white text-sm px-5 py-3 rounded-xl shadow-lg backdrop-blur"
         role="status"
         aria-live="polite"
       >

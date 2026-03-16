@@ -45,9 +45,10 @@ const option = computed(() => ({
   backgroundColor: 'transparent',
   tooltip: {
     trigger: 'axis',
-    backgroundColor: '#1e293b',
-    borderColor: '#334155',
-    textStyle: { color: '#e2e8f0' },
+    backgroundColor: '#fff',
+    borderColor: '#DDDDDD',
+    textStyle: { color: '#131313' },
+    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px',
     formatter: (params: any[]) => {
       const month = params[0].axisValue
       const sales = params[0].value.toLocaleString()
@@ -57,32 +58,32 @@ const option = computed(() => ({
   },
   legend: {
     data: ['월 매출', '조제 건수'],
-    textStyle: { color: '#94a3b8' },
+    textStyle: { color: '#555555' },
     top: 0,
   },
   grid: { left: '3%', right: '8%', bottom: '3%', containLabel: true },
   xAxis: {
     type: 'category',
     data: props.data.map(d => d.month.slice(5) + '월'),
-    axisLine: { lineStyle: { color: '#334155' } },
-    axisLabel: { color: '#64748b' },
+    axisLine: { lineStyle: { color: '#DDDDDD' } },
+    axisLabel: { color: '#777777' },
   },
   yAxis: [
     {
       type: 'value',
       name: '매출(원)',
-      nameTextStyle: { color: '#64748b' },
+      nameTextStyle: { color: '#777777' },
       axisLabel: {
-        color: '#64748b',
+        color: '#777777',
         formatter: (v: number) => (v / 10000).toFixed(0) + '만',
       },
-      splitLine: { lineStyle: { color: '#1e293b' } },
+      splitLine: { lineStyle: { color: '#F1F2F5' } },
     },
     {
       type: 'value',
       name: '조제(건)',
-      nameTextStyle: { color: '#64748b' },
-      axisLabel: { color: '#64748b' },
+      nameTextStyle: { color: '#777777' },
+      axisLabel: { color: '#777777' },
       splitLine: { show: false },
     },
   ],
@@ -92,7 +93,7 @@ const option = computed(() => ({
       type: 'bar',
       yAxisIndex: 0,
       data: props.data.map(d => d.totalAmount),
-      itemStyle: { color: '#3b82f6', borderRadius: [4, 4, 0, 0] },
+      itemStyle: { color: '#396EFF', borderRadius: [4, 4, 0, 0] },
       barMaxWidth: 32,
     },
     {
@@ -101,8 +102,8 @@ const option = computed(() => ({
       yAxisIndex: 1,
       data: props.data.map(d => d.prescriptionCount),
       smooth: true,
-      lineStyle: { color: '#10b981', width: 2 },
-      itemStyle: { color: '#10b981' },
+      lineStyle: { color: '#FD8200', width: 2 },
+      itemStyle: { color: '#FD8200' },
       symbol: 'circle',
       symbolSize: 6,
     },
@@ -112,7 +113,7 @@ const option = computed(() => ({
 
 <template>
   <!-- 빈 데이터 안내 -->
-  <div v-if="isEmpty" class="flex flex-col items-center justify-center h-full text-slate-500 gap-2">
+  <div v-if="isEmpty" class="flex flex-col items-center justify-center h-full text-[#999999] gap-2">
     <span class="text-3xl opacity-40">📊</span>
     <p class="text-xs">해당 기간의 매출 데이터가 없습니다.</p>
   </div>

@@ -29,22 +29,23 @@ const isEmpty = computed(() =>
   props.data.length === 0 || props.data.every(d => d.amount === 0)
 )
 
-const COLORS = ['#3b82f6', '#10b981']
+const COLORS = ['#396EFF', '#FD8200']
 
 const option = computed(() => ({
   backgroundColor: 'transparent',
   tooltip: {
     trigger: 'item',
-    backgroundColor: '#1e293b',
-    borderColor: '#334155',
-    textStyle: { color: '#e2e8f0' },
+    backgroundColor: '#fff',
+    borderColor: '#DDDDDD',
+    textStyle: { color: '#131313' },
+    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px',
     formatter: '{b}: {c}원 ({d}%)',
   },
   legend: {
     orient: 'horizontal',
     bottom: 0,
     left: 'center',
-    textStyle: { color: '#94a3b8' },
+    textStyle: { color: '#555555' },
   },
   series: [
     {
@@ -74,7 +75,7 @@ const option = computed(() => ({
 </script>
 
 <template>
-  <div v-if="isEmpty" class="flex flex-col items-center justify-center h-full text-slate-500 gap-2">
+  <div v-if="isEmpty" class="flex flex-col items-center justify-center h-full text-[#999999] gap-2">
     <span class="text-3xl opacity-40">💊</span>
     <p class="text-xs">의약품 매출 데이터가 없습니다.</p>
   </div>

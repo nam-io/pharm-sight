@@ -37,22 +37,23 @@ const option = computed(() => {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      backgroundColor: '#1e293b',
-      borderColor: '#334155',
-      textStyle: { color: '#e2e8f0' },
+      backgroundColor: '#fff',
+      borderColor: '#DDDDDD',
+      textStyle: { color: '#131313' },
+      extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px',
       formatter: '{b}: <b>{c}건</b>',
     },
     grid: { left: '3%', right: '8%', top: '4%', bottom: '3%', containLabel: true },
     xAxis: {
       type: 'value',
-      axisLabel: { color: '#64748b' },
-      splitLine: { lineStyle: { color: '#1e293b' } },
+      axisLabel: { color: '#777777' },
+      splitLine: { lineStyle: { color: '#F1F2F5' } },
     },
     yAxis: {
       type: 'category',
       data: sorted.map(d => d.hospitalName),
-      axisLabel: { color: '#94a3b8', fontSize: 11 },
-      axisLine: { lineStyle: { color: '#334155' } },
+      axisLabel: { color: '#777777', fontSize: 11 },
+      axisLine: { lineStyle: { color: '#DDDDDD' } },
     },
     series: [
       {
@@ -64,15 +65,15 @@ const option = computed(() => {
               type: 'linear',
               x: 0, y: 0, x2: 1, y2: 0,
               colorStops: [
-                { offset: 0, color: '#1d4ed8' },
-                { offset: 1, color: '#3b82f6' },
+                { offset: 0, color: '#396EFF' },
+                { offset: 1, color: '#54B2FF' },
               ],
             },
             borderRadius: [0, 4, 4, 0],
           },
         })),
         barMaxWidth: 20,
-        label: { show: true, position: 'right', color: '#94a3b8', formatter: '{c}건' },
+        label: { show: true, position: 'right', color: '#777777', formatter: '{c}건' },
       },
     ],
   }
@@ -80,7 +81,7 @@ const option = computed(() => {
 </script>
 
 <template>
-  <div v-if="isEmpty" class="flex flex-col items-center justify-center h-full text-slate-500 gap-2">
+  <div v-if="isEmpty" class="flex flex-col items-center justify-center h-full text-[#999999] gap-2">
     <span class="text-3xl opacity-40">🏥</span>
     <p class="text-xs">처방 기관 데이터가 없습니다.</p>
   </div>

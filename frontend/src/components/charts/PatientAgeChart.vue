@@ -29,22 +29,23 @@ const isEmpty = computed(() =>
   props.data.length === 0 || props.data.every(d => d.count === 0)
 )
 
-const COLORS = ['#6366f1','#8b5cf6','#a78bfa','#3b82f6','#06b6d4','#10b981','#f59e0b','#f97316']
+const COLORS = ['#396EFF','#54B2FF','#FD8200','#FDB44B','#F1636F','#28A745','#9B59B6','#E74C3C']
 
 const option = computed(() => ({
   backgroundColor: 'transparent',
   tooltip: {
     trigger: 'item',
-    backgroundColor: '#1e293b',
-    borderColor: '#334155',
-    textStyle: { color: '#e2e8f0' },
+    backgroundColor: '#fff',
+    borderColor: '#DDDDDD',
+    textStyle: { color: '#131313' },
+    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px',
     formatter: '{b}: {c}명 ({d}%)',
   },
   legend: {
     orient: 'vertical',
     right: '3%',
     top: 'middle',
-    textStyle: { color: '#94a3b8', fontSize: 11 },
+    textStyle: { color: '#555555', fontSize: 11 },
   },
   series: [
     {
@@ -67,7 +68,7 @@ const option = computed(() => ({
 </script>
 
 <template>
-  <div v-if="isEmpty" class="flex flex-col items-center justify-center h-full text-slate-500 gap-2">
+  <div v-if="isEmpty" class="flex flex-col items-center justify-center h-full text-[#999999] gap-2">
     <span class="text-3xl opacity-40">👥</span>
     <p class="text-xs">환자 연령대 데이터가 없습니다.</p>
   </div>

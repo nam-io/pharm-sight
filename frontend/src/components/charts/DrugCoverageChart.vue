@@ -31,15 +31,16 @@ const isEmpty = computed(() =>
   props.data.length === 0 || props.data.every(d => d.amount === 0)
 )
 
-const COLORS = ['#10b981', '#f43f5e']
+const COLORS = ['#28A745', '#F1636F']
 
 const option = computed(() => ({
   backgroundColor: 'transparent',
   tooltip: {
     trigger: 'item',
-    backgroundColor: '#1e293b',
-    borderColor: '#334155',
-    textStyle: { color: '#e2e8f0' },
+    backgroundColor: '#fff',
+    borderColor: '#DDDDDD',
+    textStyle: { color: '#131313' },
+    extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px',
     formatter: (p: any) =>
       `${p.name}<br/><b>${(p.value / 10000).toLocaleString()}만원</b> (${p.percent}%)`,
   },
@@ -47,7 +48,7 @@ const option = computed(() => ({
     orient: 'horizontal',
     bottom: 0,
     left: 'center',
-    textStyle: { color: '#94a3b8' },
+    textStyle: { color: '#555555' },
   },
   series: [
     {
@@ -76,7 +77,7 @@ const option = computed(() => ({
 </script>
 
 <template>
-  <div v-if="isEmpty" class="flex flex-col items-center justify-center h-full text-slate-500 gap-2">
+  <div v-if="isEmpty" class="flex flex-col items-center justify-center h-full text-[#999999] gap-2">
     <span class="text-3xl opacity-40">💳</span>
     <p class="text-xs">급여/비급여 지출 데이터가 없습니다.</p>
   </div>
