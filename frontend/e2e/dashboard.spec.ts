@@ -20,13 +20,14 @@ test.describe('대시보드 페이지 로딩', () => {
   test('메인 페이지가 정상적으로 로드된다', async ({ page }) => {
     await page.goto('/')
     await expect(page).toHaveTitle(/PharmSight/)
-    await expect(page.locator('h1')).toContainText('PharmSight AI')
+    await expect(page.locator('h1')).toContainText('PharmSight')
+    await expect(page.locator('header')).toContainText('AI')
   })
 
   test('헤더에 로고와 상태 배지가 표시된다', async ({ page }) => {
     await page.goto('/')
     await expect(page.locator('header')).toBeVisible()
-    await expect(page.locator('text=약국 경영 통합 AI 대시보드')).toBeVisible()
+    await expect(page.locator('text=약국 경영 통합 대시보드')).toBeVisible()
   })
 
   test('KPI 카드 4개가 렌더링된다', async ({ page }) => {
@@ -150,7 +151,7 @@ test.describe('엣지 케이스', () => {
     await page.waitForTimeout(2000)
     await page.reload()
     await page.waitForTimeout(3000)
-    await expect(page.locator('h1')).toContainText('PharmSight AI')
+    await expect(page.locator('h1')).toContainText('PharmSight')
   })
 
   test('에러 상태에서 [다시 시도] 버튼이 동작한다', async ({ page }) => {
