@@ -246,10 +246,11 @@ onMounted(() => {
     <header class="border-b border-[#DDDDDD] bg-white sticky top-0 z-10 shadow-sm">
       <div class="max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-[#396EFF] flex items-center justify-center text-white font-bold text-sm">P</div>
-          <div>
-            <h1 class="text-lg font-bold tracking-tight text-[#131313]">PharmSight AI</h1>
-            <p class="text-xs text-[#777777]">약국 경영 통합 AI 대시보드</p>
+          <div class="w-8 h-8 rounded-lg bg-[#396EFF] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">P</div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base font-bold tracking-tight text-[#131313] leading-none">PharmSight</h1>
+            <span class="text-xs font-bold text-white bg-[#396EFF] px-2 py-0.5 rounded-full leading-none">AI</span>
+            <span class="hidden sm:block text-xs text-[#777777] border-l border-[#DDDDDD] pl-2 leading-none">약국 경영 통합 대시보드</span>
           </div>
         </div>
         <div class="flex items-center gap-2 sm:gap-4">
@@ -272,7 +273,8 @@ onMounted(() => {
           <button
             @click="exportToCsv"
             :disabled="isLoading"
-            class="flex items-center gap-1.5 text-xs bg-white hover:bg-[#F4F5F7] text-[#396EFF] border border-[#396EFF] px-3 py-1.5 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            class="flex items-center gap-1.5 text-xs bg-white hover:bg-[#F4F5F7] text-[#396EFF] px-3 py-1.5 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            style="border: 1px solid #396EFF;"
             title="현재 대시보드 데이터를 CSV 파일로 내보냅니다"
           >
             ⬇ <span class="hidden sm:inline">데이터 내보내기</span><span class="sm:hidden">CSV</span>
@@ -406,10 +408,11 @@ onMounted(() => {
                 v-for="opt in periodOptions"
                 :key="opt.value"
                 @click="selectedPeriod = opt.value"
-                class="text-xs px-2.5 py-1 rounded border transition-all duration-200"
+                class="text-xs px-2.5 py-1 rounded transition-all duration-200"
                 :class="selectedPeriod === opt.value
-                  ? 'bg-white text-[#131313] border-[#131313]'
-                  : 'bg-[#F4F5F7] text-[#555555] border-transparent hover:bg-[#E8E8E8] hover:text-[#343434]'"
+                  ? 'bg-white text-[#131313]'
+                  : 'bg-[#F4F5F7] text-[#555555] hover:bg-[#E8E8E8] hover:text-[#343434]'"
+                :style="{ border: selectedPeriod === opt.value ? '1px solid #131313' : '1px solid transparent' }"
                 :aria-pressed="selectedPeriod === opt.value"
               >
                 {{ opt.label }}
