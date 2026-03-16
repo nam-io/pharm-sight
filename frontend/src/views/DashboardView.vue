@@ -408,7 +408,7 @@ onMounted(() => {
                 @click="selectedPeriod = opt.value"
                 class="text-xs px-2.5 py-1 rounded transition-all duration-200"
                 :class="selectedPeriod === opt.value
-                  ? 'bg-[#396EFF] text-white shadow-sm shadow-[#396EFF]/30'
+                  ? 'bg-[#396EFF] text-[#131313] shadow-sm shadow-[#396EFF]/30'
                   : 'bg-[#F4F5F7] text-[#555555] hover:bg-[#E8E8E8] hover:text-[#343434]'"
                 :aria-pressed="selectedPeriod === opt.value"
               >
