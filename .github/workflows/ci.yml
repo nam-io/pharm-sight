@@ -17,7 +17,7 @@
 #
 # [테스트 전략 — 총 51+ 단위 + E2E]
 #   백엔드 35개: Controller(9) + Service(13) + Repository(8) + Middleware(5)
-#   프론트엔드 16개+: useDashboardData + useAiInsight + config + 엣지 케이스
+#   프론트엔드 24개: useDashboardData(12) + useAiInsight(7) + config(5) — 엣지 케이스 8개 포함
 #   E2E (Playwright): 대시보드 페이지 로딩, 사용자 상호작용, 반응형, API 검증
 # ============================================================================
 
@@ -80,13 +80,13 @@ jobs:
 
   # ──────────────────────────────────────────────────────────
   # Job 2: 프론트엔드 Vitest 단위 테스트 + 프로덕션 빌드 검증
-  # 테스트 대상: 3개 파일 16개 테스트 (Vitest 4.1 + happy-dom)
-  #   - useDashboardData.test.ts (7개): Mock 데이터, KPI 카드, 정렬, ETC/OTC
-  #   - useAiInsight.test.ts (4개): 초기 상태, API 미설정 시 fetch 생략
+  # 테스트 대상: 3개 파일 24개 테스트 (Vitest 4.1 + happy-dom)
+  #   - useDashboardData.test.ts (12개): Mock 데이터 7개 + 엣지 케이스 5개 (0원, 빈 배열, NaN 방어)
+  #   - useAiInsight.test.ts (7개): 초기 상태 4개 + 안전성 3개 (isLoading 복구, null, error 동기화)
   #   - config.test.ts (5개): 설정값 관계 검증 (AI > 대시보드 타임아웃 등)
   # ──────────────────────────────────────────────────────────
   frontend-test:
-    name: "프론트엔드 Vitest 16개 테스트 + Vite 빌드"
+    name: "프론트엔드 Vitest 24개 테스트 + Vite 빌드"
     runs-on: ubuntu-latest
 
     steps:
@@ -103,7 +103,7 @@ jobs:
       - name: NPM 패키지 설치 (CI 모드)
         run: npm ci --prefix frontend
 
-      - name: "Vitest 16개 단위 테스트 실행 (happy-dom 환경)"
+      - name: "Vitest 24개 단위 테스트 실행 (happy-dom 환경)"
         run: npm test --prefix frontend
 
       - name: "Vite 프로덕션 빌드 검증 (TypeScript 타입 체크 + 번들 분할)"

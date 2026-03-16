@@ -240,7 +240,11 @@ DashboardView.vue (단일 뷰)
 - **Composable로 관심사 완전 분리**: 각 Composable이 자체 `ref`를 관리하므로, 전역 store 없이도 상태 캡슐화 달성
 - **번들 크기 절약**: Pinia(~2KB gzip) 추가 시 이점 없이 의존성만 증가
 
-> **확장 시 전환 시점:** 다중 약국 지원(F-13), 사용자 인증 등 전역 상태가 필요한 기능 추가 시 Pinia 도입 예정. 현재 단계에서는 YAGNI(You Aren't Gonna Need It) 원칙을 적용합니다.
+> **확장 시 Pinia 전환 전략 (Migration Path):**
+> 1. **전환 시점:** 다중 약국 지원(F-13) 또는 사용자 인증 기능 추가 시 — 2개 이상 뷰에서 동일 상태를 참조하는 순간
+> 2. **전환 비용 최소화:** 현재 Composable의 `ref`/`computed`가 Pinia store의 `state`/`getters`와 1:1 대응하므로, `useDashboardData()` → `useDashboardStore()`로 기계적 전환 가능 (API 호출 로직 그대로 유지)
+> 3. **예상 작업량:** Composable 3개 → Pinia store 3개 변환 (각 30분 이내), DashboardView의 import 경로만 변경
+> 4. **현재 판단:** 단일 뷰 + 읽기 전용 + 3개 Composable 구조에서 Pinia 추가는 보일러플레이트만 증가시키므로, YAGNI(You Aren't Gonna Need It) 원칙 적용
 
 ### 프론트엔드 번들 크기 최적화 — Tree-shaking + Code Splitting
 
@@ -406,7 +410,7 @@ frontend/src/
 
 ## 테스트 전략 및 CI/CD
 
-### 테스트 피라미드: 총 51개 테스트 (백엔드 35 + 프론트엔드 16)
+### 테스트 피라미드: 총 74개 테스트 (백엔드 35 + 프론트엔드 24 + E2E 15)
 
 **백엔드 (xUnit 2.9.2 + Moq 4.20.72 + Coverlet 커버리지):**
 
@@ -415,16 +419,33 @@ frontend/src/
 | `DashboardServiceTests` | Service | 9개 | 7개 메서드 반환값, 빈 결과 엣지 케이스, 0 나눗셈 방어 |
 | `AiInsightServiceTests` | Service | 4개 | API키 미설정 Graceful Degradation, 캐시 히트/미스 |
 | `DashboardRepositoryTests` | Repository | 8개 | 연결문자열 URI→키=값 변환 6종, 미설정 예외, 인터페이스 구현 검증 |
-| `DashboardControllerTests` | Controller | 9개 | 7개 엔드포인트 OkResult 반환, ApiController 어트리뷰트, Thin Controller 패턴(모든 메서드 `Task<IActionResult>` 반환) 검증 |
-| `GlobalExceptionMiddlewareTests` | Middleware | 5개 | 정상 통과, ArgumentNull→400, InvalidOperation→400, Exception→500, JSON 응답 형식 검증 |
+| `DashboardControllerTests` | Controller | 9개 | 7개 엔드포인트 OkResult 반환, ApiController 어트리뷰트, Thin Controller 패턴 검증 |
+| `GlobalExceptionMiddlewareTests` | Middleware | 5개 | 정상 통과, ArgumentNull→400, InvalidOperation→400, Exception→500, JSON 응답 형식 |
+
+**Coverlet 코드 커버리지 결과:**
+
+| 지표 | 수치 | 상세 |
+|------|------|------|
+| 라인 커버리지 | **44.1%** | 173 / 392 라인 (Controller·Service·Middleware 85~95%, Repository SQL은 통합 테스트 영역) |
+| 브랜치 커버리지 | **19.8%** | 19 / 96 브랜치 (Program.cs 부트스트랩 + Dapper SQL 실행 브랜치 제외 시 ~60%) |
 
 **프론트엔드 (Vitest 4.1 + Vue Test Utils + happy-dom):**
 
 | 테스트 파일 | 케이스 수 | 검증 내용 |
 |-------------|-----------|----------|
-| `useDashboardData.test.ts` | 7개 | Mock 초기 데이터 구조, KPI 카드 4종 생성, 월별 정렬, ETC/OTC 구분 |
-| `useAiInsight.test.ts` | 4개 | 초기 상태 null, API 미설정 시 fetch 생략, errorType 초기값, 반환 속성 완전성 |
+| `useDashboardData.test.ts` | 12개 | Mock 데이터 7개 + **엣지 케이스 5개** (0원 매출, KPI 0%, 빈 배열, 0÷0 NaN, 빈 도매상) |
+| `useAiInsight.test.ts` | 7개 | 초기 상태 4개 + **안전성 3개** (isLoading 복구, null 참조, error/errorType 동기화) |
 | `config.test.ts` | 5개 | 설정값 검증: 타임아웃 양수, AI > 대시보드, 재시도 ≥ 0, Keep-Alive < Render 슬립 |
+
+**Playwright E2E 브라우저 테스트 (Chromium + Mobile Chrome):**
+
+| 카테고리 | 케이스 수 | 검증 내용 |
+|----------|-----------|----------|
+| 페이지 로딩 | 3개 | 타이틀, 헤더, KPI 카드 4개 렌더링 |
+| 사용자 상호작용 | 4개 | 기간 필터, CSV 내보내기 |
+| 반응형 레이아웃 | 3개 | 데스크톱/모바일 레이아웃 |
+| 백엔드 API E2E | 3개 | /health, /kpi, /monthly-sales 실제 응답 검증 |
+| 엣지 케이스 | 2개 | 네트워크 에러 복구, 새로고침 복원 |
 
 **코드 품질 관리:**
 - 하드코딩 상수 제거 → `frontend/src/config.ts`에 중앙 관리 (타임아웃, 재시도, API URL, Keep-Alive 주기)
@@ -435,8 +456,8 @@ frontend/src/
 
 ```
 push/PR
-  ├→ [backend-test]     .NET 9.0 빌드 → xUnit 35개 테스트 → Coverlet 커버리지
-  ├→ [frontend-test]    npm ci → Vitest 단위 테스트 → Vite 빌드 + 번들 분석
+  ├→ [backend-test]     .NET 9.0 빌드 → xUnit 35개 테스트 → Coverlet 커버리지 (라인 44.1%)
+  ├→ [frontend-test]    npm ci → Vitest 24개 테스트 → Vite 빌드 + 번들 분석
   └→ (1,2 완료 후)
       ├→ [e2e-playwright]  Playwright Chromium E2E 브라우저 테스트
       ├→ [e2e-smoke]       배포된 서비스 9개 엔드포인트 HTTP 검증
@@ -491,7 +512,7 @@ push/PR
 | Phase 1 — 프론트엔드 UI | 7개 | 6종 ECharts 차트, Mock 데이터 Composable, Vercel 배포 |
 | Phase 2 — 백엔드 API | 13개 | Dapper 7개 집계 쿼리, Render+Supabase 배포, 연결 버그 3건 수정 |
 | Phase 3 — AI 기능 | 13개 | Gemini API 통합, 10단계 디버깅 → ListModels 동적 탐색으로 근본 해결 |
-| Phase 4 — 테스트/CI/UX | 16개+ | xUnit 35개 + Vitest 16개 = 51개, 4-Job CI, Vue Transition, 토스트, 스켈레톤 |
+| Phase 4 — 테스트/CI/UX | 16개+ | xUnit 35개 + Vitest 24개 + Playwright E2E 15개 = 74개, 6-Job CI, Vue Transition, 드릴다운, 스와이프, ARIA 접근성 |
 
 > 전체 커밋-ROADMAP 매핑: [`docs/CHANGELOG.md`](docs/CHANGELOG.md) · ADR 8개: [`docs/decision-log.md`](docs/decision-log.md) · 스프린트 문서: [`docs/sprint/`](docs/sprint/)
 

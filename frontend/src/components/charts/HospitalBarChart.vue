@@ -1,3 +1,17 @@
+/**
+ * @component HospitalBarChart
+ * @description 처방전 발행 의료기관 TOP 6 수평 바 차트.
+ * 약국의 병원 의존도 파악에 핵심적인 차트 — 매출 집중 리스크 시각화.
+ *
+ * [차트 구성]
+ * - 수평 바: 처방 건수 오름차순 정렬, 리니어 그라디언트 컬러
+ * - 우측 라벨: "N건" 형식 표시
+ *
+ * [엣지 케이스] 빈 배열 또는 모든 count 0 → "데이터 없음" UI 표시
+ * [에러 처리] 공통 isEmpty 패턴 적용, sorted 복사본으로 원본 불변성 보장
+ *
+ * @props {HospitalPrescription[]} data - 기관별 처방 건수 (hospitalName, count)
+ */
 <script setup lang="ts">
 import { computed } from 'vue'
 import VChart from 'vue-echarts'

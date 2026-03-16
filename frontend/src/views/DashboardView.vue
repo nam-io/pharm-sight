@@ -283,14 +283,21 @@ onMounted(() => {
 
     <main class="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
 
-      <!-- ── 로딩 진행률 표시바 ────────────────────────────────────────────── -->
+      <!-- ── 로딩 진행률 표시바 (ARIA: progressbar + aria-valuenow) ──────── -->
       <Transition name="slide-fade">
-        <div v-if="isLoading" class="rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-3">
+        <div v-if="isLoading" class="rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-3" aria-busy="true">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-slate-400">{{ loadingStage }}</span>
+            <span class="text-xs text-slate-400" aria-live="polite">{{ loadingStage }}</span>
             <span class="text-xs text-blue-400 font-mono">{{ loadingProgress }}%</span>
           </div>
-          <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+          <div
+            class="h-1.5 bg-slate-800 rounded-full overflow-hidden"
+            role="progressbar"
+            :aria-valuenow="loadingProgress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            :aria-label="`데이터 로딩 진행률 ${loadingProgress}%`"
+          >
             <div
               class="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-300 ease-out"
               :style="{ width: loadingProgress + '%' }"
@@ -382,7 +389,7 @@ onMounted(() => {
       </section>
 
       <!-- ── 차트 행 1: 매출 추이 (기간 필터 + 드릴다운 + 터치 스와이프) + ETC/OTC ── -->
-      <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-4" aria-label="매출 분석 차트">
         <div
           class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5"
           @touchstart="handleTouchStart"
@@ -453,7 +460,7 @@ onMounted(() => {
       </section>
 
       <!-- ── 차트 행 2: 연령대 분포 + 처방 기관 TOP 6 ─────────────────── -->
-      <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-4" aria-label="환자 및 처방 분석">
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <div class="mb-4">
             <h2 class="text-sm font-semibold text-slate-200">방문 환자 연령대 분포</h2>
@@ -482,7 +489,7 @@ onMounted(() => {
       </section>
 
       <!-- ── 차트 행 3: 도매상 지출 + 급여/비급여 ─────────────────────── -->
-      <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-4" aria-label="지출 구조 분석">
         <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5">
           <div class="mb-4">
             <h2 class="text-sm font-semibold text-slate-200">도매상별 누적 지출 현황</h2>

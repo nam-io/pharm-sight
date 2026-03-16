@@ -1,3 +1,17 @@
+/**
+ * @component WholesaleBarChart
+ * @description 도매상별 누적 지출 현황 세로 바 차트. 비용 구조 파악용.
+ *
+ * [차트 구성]
+ * - 세로 바: 지출액 내림차순 정렬, 오렌지 계열 5색 팔레트
+ * - 상단 라벨: "N만" 형식 (만원 단위 변환)
+ * - Y축: 만원 단위 포맷
+ *
+ * [엣지 케이스] 빈 배열 또는 모든 amount 0 → "데이터 없음" UI 표시
+ * [에러 처리] 공통 isEmpty 패턴, sorted 복사본으로 원본 불변성 보장
+ *
+ * @props {WholesaleExpense[]} data - 도매상별 지출 (wholesaleName, amount)
+ */
 <script setup lang="ts">
 import { computed } from 'vue'
 import VChart from 'vue-echarts'

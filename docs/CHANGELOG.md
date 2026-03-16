@@ -20,31 +20,36 @@ Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4
 ## Phase 0 — 프로젝트 기반 구축
 
 > ROADMAP: Phase 0 · Sprint 0
+> **목표:** 프로젝트 아키텍처 설계, AI 에이전트 협업 시스템 구축, 백엔드 스캐폴딩
+> **ROADMAP 연결:** Phase 0 전체 항목 — 프로젝트 초기화 + 스프린트 프로세스 정의
 
-| 커밋 | 해시 | ROADMAP 항목 |
-|------|------|--------------|
-| docs: 프로젝트 기반 문서 및 설정 파일 추가 | `5c00605` | Phase 0: 프로젝트 초기화 |
-| ci: GitHub Actions 워크플로우 및 개발 프로세스 문서 추가 | `19656a3` | Phase 0: CI/CD 기반 |
-| chore: Claude AI 에이전트 정의 및 메모리 시스템 추가 | `998fbc1` | Phase 0: AI 협업 시스템 |
-| docs: Sprint 0 스프린트 계획 문서 작성 | `06bd1d2` | Phase 0: 스프린트 계획 |
-| feat: 백엔드 .NET 9.0 Web API 프로젝트 스캐폴딩 및 SQLite 스키마 초기화 | `008f5bd` | Phase 0: 백엔드 초기화 |
-| chore: .gitignore에 .NET 빌드 산출물 제외 규칙 추가 | `e1b035f` | Phase 0: 환경 설정 |
+| 커밋 | 해시 | ROADMAP 항목 | 기술 결정 |
+|------|------|--------------|----------|
+| docs: 프로젝트 기반 문서 및 설정 파일 추가 | `5c00605` | Phase 0: 프로젝트 초기화 | PRD/ROADMAP/CLAUDE.md 3대 문서 체계 확립 |
+| ci: GitHub Actions 워크플로우 및 개발 프로세스 문서 추가 | `19656a3` | Phase 0: CI/CD 기반 | GitHub Actions YAML 초기 파이프라인 (→ Phase 4에서 6-Job으로 확장) |
+| chore: Claude AI 에이전트 정의 및 메모리 시스템 추가 | `998fbc1` | Phase 0: AI 협업 시스템 | `.claude/agents/` 4종 에이전트 정의 (planner/close/hotfix/prd-to-roadmap) |
+| docs: Sprint 0 스프린트 계획 문서 작성 | `06bd1d2` | Phase 0: 스프린트 계획 | Agile/스크럼 스프린트 프로세스 정의 — 이후 Sprint 1~4까지 동일 프로세스 적용 |
+| feat: 백엔드 .NET 9.0 Web API 프로젝트 스캐폴딩 및 SQLite 스키마 초기화 | `008f5bd` | Phase 0: 백엔드 초기화 | Controller→Service→Repository 3계층 + Interface DI 아키텍처 확정 (ADR-001) |
+| chore: .gitignore에 .NET 빌드 산출물 제외 규칙 추가 | `e1b035f` | Phase 0: 환경 설정 | .NET bin/obj + node_modules 제외 규칙 |
 
 ---
 
 ## Phase 1 — 프론트엔드 UI 개발
 
 > ROADMAP: Phase 1 · Sprint 1
+> **목표:** Vue 3 Composition API + ECharts 6종 차트 대시보드 UI 구축
+> **ROADMAP 연결:** Phase 1 전체 항목 — 프론트엔드 초기화 + KPI 카드 + 차트 6종 + Vercel 배포
+> **핵심 기술 결정:** Vue 3 선택 (React 대비 Composable 재사용성), ECharts 선택 (Chart.js 대비 복합 차트 지원), Pinia 미채택 (단일 뷰 + 읽기 전용 → YAGNI 원칙, 확장 시 도입 계획 수립)
 
-| 커밋 | 해시 | ROADMAP 항목 |
-|------|------|--------------|
-| feat: 프론트엔드 Vue 3 + Vite 6 + TypeScript 프로젝트 스캐폴딩 | `43be119` | Phase 1: 프로젝트 생성 |
-| docs: README.md에 Vercel 배포 URL 등록 | `7e1c4c7` | Phase 1: 배포 URL 기록 |
-| feat: 대시보드 TypeScript 타입 정의 및 Mock 데이터 Composable 구현 | `afc1543` | Phase 1: 타입/Composable |
-| feat: 대시보드 메인 뷰 연결 및 빌드 환경 설정 | `4569a33` | Phase 1: UI 메인 뷰 |
-| docs: Sprint 1 스프린트 계획 문서 작성 | `f5fc702` | Phase 1: 문서화 |
-| merge: sprint/sprint1 → develop | `62c01f8` | Phase 1: 브랜치 통합 |
-| release: Phase 1 프론트엔드 대시보드 UI → master 배포 | `62443d8` | Phase 1: 배포 |
+| 커밋 | 해시 | ROADMAP 항목 | 기술 결정 |
+|------|------|--------------|----------|
+| feat: 프론트엔드 Vue 3 + Vite 6 + TypeScript 프로젝트 스캐폴딩 | `43be119` | Phase 1: 프로젝트 생성 | Vue 3 Composition API + Vite 6 HMR 즉시 반영 (ADR-002) |
+| docs: README.md에 Vercel 배포 URL 등록 | `7e1c4c7` | Phase 1: 배포 URL 기록 | Vercel CDN 자동 배포 채택 |
+| feat: 대시보드 TypeScript 타입 정의 및 Mock 데이터 Composable 구현 | `afc1543` | Phase 1: 타입/Composable | `types.ts` 타입 정의 + `useDashboardData` Composable — Pinia 대신 Composable 패턴 선택 |
+| feat: 대시보드 메인 뷰 연결 및 빌드 환경 설정 | `4569a33` | Phase 1: UI 메인 뷰 | DashboardView + ECharts 6종 차트 컴포넌트 (SalesLine/DrugType/PatientAge/Hospital/Wholesale/Coverage) |
+| docs: Sprint 1 스프린트 계획 문서 작성 | `f5fc702` | Phase 1: 문서화 | — |
+| merge: sprint/sprint1 → develop | `62c01f8` | Phase 1: 브랜치 통합 | — |
+| release: Phase 1 프론트엔드 대시보드 UI → master 배포 | `62443d8` | Phase 1: 배포 | Vercel 프로덕션 배포 최초 실행 |
 
 ---
 
@@ -331,7 +336,7 @@ Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4
 
 ## 2차 재평가 대응 — UX 강화 및 테스트 확장
 
-> 2차 평가 피드백을 받아 테스트 35개→51개 확장, 트랜지션/토스트 UX 구현, CI 4-Job 확장
+> 2차 평가 피드백을 받아 테스트 35개→59개 확장, 트랜지션/토스트 UX 구현, CI 6-Job 확장
 
 | 커밋 | 해시 | 보완 내용 | ROADMAP 항목 |
 |------|------|----------|------------|

@@ -1,3 +1,18 @@
+/**
+ * @component DrugCoverageChart
+ * @description 급여/비급여 의약품 지출 비율 도넛 차트.
+ * 건강보험 적용 여부별 지출 구조를 시각화합니다.
+ *
+ * [차트 구성]
+ * - 도넛 차트: 급여(초록) / 비급여(빨강) 2개 세그먼트
+ * - 내부 라벨: 퍼센트(%) 표시, 범례: 하단 수평 배치
+ * - 툴팁: 만원 단위 변환 표시
+ *
+ * [엣지 케이스] 빈 배열 또는 모든 amount 0 → "데이터 없음" UI 표시
+ * [에러 처리] 공통 isEmpty 패턴, 0 나눗셈은 ECharts 내부에서 안전 처리 (0% 표시)
+ *
+ * @props {DrugCoverage[]} data - 급여/비급여 지출 (label, amount)
+ */
 <script setup lang="ts">
 import { computed } from 'vue'
 import VChart from 'vue-echarts'

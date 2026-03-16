@@ -1,3 +1,16 @@
+/**
+ * @component DrugTypePieChart
+ * @description 전문의약품(ETC) vs 일반의약품(OTC) 매출 비중을 도넛 차트로 시각화.
+ *
+ * [차트 구성]
+ * - 도넛 차트: ETC(파랑) / OTC(초록) 2개 세그먼트
+ * - 내부 라벨: 퍼센트(%) 표시, 범례: 하단 수평 배치
+ *
+ * [엣지 케이스] 빈 배열 또는 모든 금액 0 → "데이터 없음" UI 표시
+ * [에러 처리] props 미전달 시 Vue 기본값 적용, ECharts 내부 안전 처리
+ *
+ * @props {DrugTypeSales[]} data - ETC/OTC 매출 데이터 (type, label, amount)
+ */
 <script setup lang="ts">
 import { computed } from 'vue'
 import VChart from 'vue-echarts'

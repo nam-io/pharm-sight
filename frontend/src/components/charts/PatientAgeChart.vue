@@ -1,3 +1,16 @@
+/**
+ * @component PatientAgeChart
+ * @description 방문 환자 연령대 분포를 8개 연령대별 도넛 차트로 시각화.
+ *
+ * [차트 구성]
+ * - 도넛 차트: 0-9세 ~ 70세 이상 8개 세그먼트, 컬러 팔레트 8색
+ * - 범례: 우측 세로 배치, hover 시 라벨 표시
+ *
+ * [엣지 케이스] 빈 배열 또는 모든 count 0 → "데이터 없음" UI 표시
+ * [에러 처리] 공통 패턴: isEmpty computed → 빈 데이터 안내 / VChart autoresize
+ *
+ * @props {PatientAgeGroup[]} data - 연령대별 환자 수 (ageGroup, count)
+ */
 <script setup lang="ts">
 import { computed } from 'vue'
 import VChart from 'vue-echarts'

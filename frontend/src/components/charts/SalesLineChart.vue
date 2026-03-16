@@ -1,3 +1,23 @@
+/**
+ * @component SalesLineChart
+ * @description 월별 매출 추이를 바+라인 복합 차트로 시각화하는 ECharts 컴포넌트.
+ *
+ * [차트 구성]
+ * - 바 차트 (왼쪽 Y축): 월별 총 매출액 (원 단위, 만원 라벨)
+ * - 라인 차트 (오른쪽 Y축): 월별 조제 건수 (건 단위)
+ * - X축: 월 (MM월 형식)
+ *
+ * [엣지 케이스 처리]
+ * - 빈 배열: "매출 데이터 없음" 아이콘+메시지 표시
+ * - 모든 값 0: isEmpty 조건에 포함 → 빈 차트 방지
+ *
+ * [에러 처리]
+ * - props.data가 undefined/null이면 Vue가 기본값([])을 적용
+ * - ECharts 내부 오류는 VChart autoresize가 안전하게 처리
+ *
+ * @props {MonthlySales[]} data - 월별 매출 데이터 배열 (month, totalAmount, prescriptionCount)
+ * @emits click - 바/라인 클릭 시 ECharts params 전달 (드릴다운용)
+ */
 <script setup lang="ts">
 import { computed } from 'vue'
 import VChart from 'vue-echarts'
