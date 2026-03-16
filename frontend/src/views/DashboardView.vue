@@ -272,7 +272,7 @@ onMounted(() => {
           <button
             @click="exportToCsv"
             :disabled="isLoading"
-            class="flex items-center gap-1.5 text-xs bg-[#EEF3FF] hover:bg-[#396EFF] hover:text-white text-[#396EFF] border border-[#396EFF]/40 hover:border-[#396EFF] px-3 py-1.5 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            class="flex items-center gap-1.5 text-xs bg-white hover:bg-[#F4F5F7] text-[#396EFF] border border-[#396EFF]/40 hover:border-[#396EFF] px-3 py-1.5 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             title="현재 대시보드 데이터를 CSV 파일로 내보냅니다"
           >
             ⬇ <span class="hidden sm:inline">데이터 내보내기</span><span class="sm:hidden">CSV</span>
@@ -408,8 +408,8 @@ onMounted(() => {
                 @click="selectedPeriod = opt.value"
                 class="text-xs px-2.5 py-1 rounded transition-all duration-200"
                 :class="selectedPeriod === opt.value
-                  ? 'bg-[#396EFF] text-[#131313] shadow-sm shadow-[#396EFF]/30'
-                  : 'bg-[#F4F5F7] text-[#555555] hover:bg-[#E8E8E8] hover:text-[#343434]'"
+                  ? 'bg-white text-[#131313] border border-[#131313]'
+                  : 'bg-[#F4F5F7] text-[#555555] border border-transparent hover:bg-[#E8E8E8] hover:text-[#343434]'"
                 :aria-pressed="selectedPeriod === opt.value"
               >
                 {{ opt.label }}
