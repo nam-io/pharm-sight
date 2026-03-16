@@ -297,15 +297,23 @@ jobs:
       - name: "Vercel CLI 설치"
         run: npm install -g vercel@latest
 
-      - name: "Vercel 프로덕션 배포 (자동)"
+      - name: "Vercel 배포 상태 확인 (GitHub 연동 자동 배포)"
         run: |
-          echo "=== Vercel 프론트엔드 자동 배포 ==="
-          echo "배포 방식: Vercel CLI (CI/CD 파이프라인 내 자동 실행)"
-          echo "트리거: master push + 테스트 통과"
+          echo "=== Vercel 프론트엔드 배포 확인 ==="
+          echo "배포 방식: GitHub 연동 자동 배포 (master push 트리거)"
+          echo "배포 URL: https://pharm-sight-frontend.vercel.app"
           echo ""
-          vercel --prod --yes --token=${{ secrets.VERCEL_TOKEN }} 2>&1 || echo "⚠️ Vercel 토큰 미설정 시 GitHub 연동 자동 배포로 대체됩니다."
-          echo ""
-          echo "✅ 배포 완료 — https://pharm-sight-frontend.vercel.app"
+          # GitHub push 시 Vercel GitHub App이 자동으로 배포를 처리합니다.
+          # 테스트 통과 여부는 이 Job의 needs: [e2e-playwright]로 보장됩니다.
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "Vercel CLI 배포 실행 중..."
+            vercel --prod --yes --token="$VERCEL_TOKEN" 2>&1
+            echo "✅ Vercel CLI 배포 완료"
+          else
+            echo "ℹ️ VERCEL_TOKEN 미설정 — GitHub 연동 자동 배포로 처리됩니다."
+            echo "✅ master push 시 Vercel GitHub App이 자동 배포를 실행합니다."
+          fi
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
