@@ -136,12 +136,14 @@ public class AiInsightService : IAiInsightService
 
     /// <summary>
     /// 계정에서 실제 사용 가능한 Gemini 모델명을 동적으로 조회합니다.
-    /// 결과는 1시간 캐시합니다.
+    /// 2.5 계열 제외, 1.5-flash 계열 우선 선택. 결과는 1시간 캐시합니다.
     /// </summary>
-    private async Task<string> ResolveModelNameAsync()
+    private async Task<string> ResolveModelNameAsync(HashSet<string>? excludeModels = null)
     {
         const string modelCacheKey = "gemini_model_name";
-        if (_cache.TryGetValue(modelCacheKey, out string? cached) && cached is not null)
+        bool useCache = excludeModels == null || excludeModels.Count == 0;
+
+        if (useCache && _cache.TryGetValue(modelCacheKey, out string? cached) && cached is not null)
             return cached;
 
         try
@@ -154,7 +156,7 @@ public class AiInsightService : IAiInsightService
             if (res.IsSuccessStatusCode)
             {
                 using var doc = JsonDocument.Parse(body);
-                string? flashModel = null, proModel = null;
+                var flashCandidates = new List<string>();
 
                 foreach (var model in doc.RootElement.GetProperty("models").EnumerateArray())
                 {
@@ -163,15 +165,23 @@ public class AiInsightService : IAiInsightService
                     if (!methods.EnumerateArray().Any(m => m.GetString() == "generateContent")) continue;
 
                     var shortName = name.Replace("models/", "");
-                    // gemini-1.5-flash 우선 선택 (무료 1500건/일, 2.5-flash는 20건/일)
-                    if (shortName == "gemini-1.5-flash") flashModel = shortName;
-                    else if (flashModel == null && shortName.Contains("flash") && !shortName.Contains("2.5")) flashModel = shortName;
-                    if (proModel == null && shortName.Contains("pro") && !shortName.Contains("vision")) proModel = shortName;
+                    // 2.5 계열 완전 제외, flash만 수집
+                    if (shortName.Contains("flash") && !shortName.Contains("2.5"))
+                        flashCandidates.Add(shortName);
                 }
 
-                var chosen = flashModel ?? proModel ?? "gemini-pro";
+                // 제외 모델 필터링
+                if (excludeModels?.Count > 0)
+                    flashCandidates.RemoveAll(m => excludeModels.Contains(m));
+
+                // 1.5 계열 우선, 없으면 나머지 flash
+                var chosen = flashCandidates.FirstOrDefault(m => m.Contains("1.5"))
+                    ?? flashCandidates.FirstOrDefault()
+                    ?? "gemini-1.5-flash-latest";
+
                 _logger.LogInformation("Gemini 사용 모델 선택: {Model}", chosen);
-                _cache.Set(modelCacheKey, chosen, TimeSpan.FromHours(1));
+                if (useCache)
+                    _cache.Set(modelCacheKey, chosen, TimeSpan.FromHours(1));
                 return chosen;
             }
         }
@@ -180,7 +190,7 @@ public class AiInsightService : IAiInsightService
             _logger.LogWarning(ex, "Gemini 모델 목록 조회 실패, 기본값 사용");
         }
 
-        return "gemini-pro";
+        return "gemini-1.5-flash-latest";
     }
 
     /// <summary>Google Gemini API를 호출하고 텍스트 응답을 반환합니다.</summary>
@@ -203,14 +213,14 @@ public class AiInsightService : IAiInsightService
 
         if ((int)response.StatusCode == 429)
         {
-            // 할당량 초과 → 모델 캐시 무효화 후 1.5-flash로 1회 재시도
-            _logger.LogWarning("Gemini 429 할당량 초과 (model={Model}), gemini-1.5-flash로 재시도", model);
+            // 할당량 초과 → 현재 모델 제외 후 ListModels로 다음 후보 선택해 재시도
+            _logger.LogWarning("Gemini 429 할당량 초과 (model={Model}), 다른 모델로 재시도", model);
             _cache.Remove("gemini_model_name");
-            const string fallback = "gemini-1.5-flash";
-            var fallbackUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{fallback}:generateContent?key={_apiKey}";
+            var fallbackModel = await ResolveModelNameAsync(excludeModels: [model]);
+            var fallbackUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{fallbackModel}:generateContent?key={_apiKey}";
             response = await client.PostAsJsonAsync(fallbackUrl, requestBody);
             responseBody = await response.Content.ReadAsStringAsync();
-            model = fallback;
+            model = fallbackModel;
         }
 
         if (!response.IsSuccessStatusCode)
