@@ -163,7 +163,9 @@ public class AiInsightService : IAiInsightService
                     if (!methods.EnumerateArray().Any(m => m.GetString() == "generateContent")) continue;
 
                     var shortName = name.Replace("models/", "");
-                    if (flashModel == null && shortName.Contains("flash")) flashModel = shortName;
+                    // gemini-1.5-flash 우선 선택 (무료 1500건/일, 2.5-flash는 20건/일)
+                    if (shortName == "gemini-1.5-flash") flashModel = shortName;
+                    else if (flashModel == null && shortName.Contains("flash") && !shortName.Contains("2.5")) flashModel = shortName;
                     if (proModel == null && shortName.Contains("pro") && !shortName.Contains("vision")) proModel = shortName;
                 }
 
@@ -198,6 +200,18 @@ public class AiInsightService : IAiInsightService
 
         var response = await client.PostAsJsonAsync(url, requestBody);
         var responseBody = await response.Content.ReadAsStringAsync();
+
+        if ((int)response.StatusCode == 429)
+        {
+            // 할당량 초과 → 모델 캐시 무효화 후 1.5-flash로 1회 재시도
+            _logger.LogWarning("Gemini 429 할당량 초과 (model={Model}), gemini-1.5-flash로 재시도", model);
+            _cache.Remove("gemini_model_name");
+            const string fallback = "gemini-1.5-flash";
+            var fallbackUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{fallback}:generateContent?key={_apiKey}";
+            response = await client.PostAsJsonAsync(fallbackUrl, requestBody);
+            responseBody = await response.Content.ReadAsStringAsync();
+            model = fallback;
+        }
 
         if (!response.IsSuccessStatusCode)
             throw new InvalidOperationException(
