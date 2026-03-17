@@ -50,7 +50,7 @@ const option = computed(() => ({
   series: [
     {
       type: 'pie',
-      radius: ['45%', '72%'],
+      radius: ['30%', '75%'],
       center: ['50%', '45%'],
       avoidLabelOverlap: false,
       label: {
