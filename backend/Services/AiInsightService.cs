@@ -19,7 +19,7 @@ public class AiInsightService : IAiInsightService
     private readonly string _apiKey;
 
     private const string CacheKey = "ai_insight";
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(24);
 
     public AiInsightService(
         IDashboardRepository repository,
@@ -165,8 +165,8 @@ public class AiInsightService : IAiInsightService
                     if (!methods.EnumerateArray().Any(m => m.GetString() == "generateContent")) continue;
 
                     var shortName = name.Replace("models/", "");
-                    // 2.5 계열 완전 제외, flash만 수집
-                    if (shortName.Contains("flash") && !shortName.Contains("2.5"))
+                    // 1.5 계열만 허용 (2.0/2.5 무료 할당량 0 또는 매우 낮음)
+                    if (shortName.Contains("flash") && shortName.Contains("1.5"))
                         flashCandidates.Add(shortName);
                 }
 
@@ -174,9 +174,8 @@ public class AiInsightService : IAiInsightService
                 if (excludeModels?.Count > 0)
                     flashCandidates.RemoveAll(m => excludeModels.Contains(m));
 
-                // 1.5 계열 우선, 없으면 나머지 flash
-                var chosen = flashCandidates.FirstOrDefault(m => m.Contains("1.5"))
-                    ?? flashCandidates.FirstOrDefault()
+                // 1.5-flash 계열 중 선택, 없으면 안전 기본값
+                var chosen = flashCandidates.FirstOrDefault()
                     ?? "gemini-1.5-flash-latest";
 
                 _logger.LogInformation("Gemini 사용 모델 선택: {Model}", chosen);
