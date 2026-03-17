@@ -59,7 +59,7 @@ const option = computed(() => ({
         formatter: '{d}%',
         color: '#fff',
         fontWeight: 'bold',
-        fontSize: 13,
+        fontSize: 10,
       },
       data: props.data.map((d, i) => ({
         name: d.label,
