@@ -165,8 +165,7 @@ public class AiInsightService : IAiInsightService
                     if (!methods.EnumerateArray().Any(m => m.GetString() == "generateContent")) continue;
 
                     var shortName = name.Replace("models/", "");
-                    // 1.5 계열만 허용 (2.0/2.5 무료 할당량 0 또는 매우 낮음)
-                    if (shortName.Contains("flash") && shortName.Contains("1.5"))
+                    if (shortName.Contains("flash"))
                         flashCandidates.Add(shortName);
                 }
 
@@ -174,13 +173,13 @@ public class AiInsightService : IAiInsightService
                 if (excludeModels?.Count > 0)
                     flashCandidates.RemoveAll(m => excludeModels.Contains(m));
 
-                // 1.5-flash 계열 중 선택, 없으면 안전 기본값
-                var chosen = flashCandidates.FirstOrDefault()
-                    ?? "gemini-1.5-flash-latest";
+                // 사용 가능한 flash 모델 중 첫 번째 선택 (24시간 캐시로 할당량 절약)
+                var chosen = flashCandidates.FirstOrDefault() ?? "gemini-2.5-flash";
 
-                _logger.LogInformation("Gemini 사용 모델 선택: {Model}", chosen);
+                _logger.LogInformation("Gemini 사용 모델 선택: {Model} (전체 후보: {All})",
+                    chosen, string.Join(", ", flashCandidates));
                 if (useCache)
-                    _cache.Set(modelCacheKey, chosen, TimeSpan.FromHours(1));
+                    _cache.Set(modelCacheKey, chosen, TimeSpan.FromHours(24));
                 return chosen;
             }
         }
@@ -189,7 +188,7 @@ public class AiInsightService : IAiInsightService
             _logger.LogWarning(ex, "Gemini 모델 목록 조회 실패, 기본값 사용");
         }
 
-        return "gemini-1.5-flash-latest";
+        return "gemini-2.5-flash";
     }
 
     /// <summary>Google Gemini API를 호출하고 텍스트 응답을 반환합니다.</summary>
